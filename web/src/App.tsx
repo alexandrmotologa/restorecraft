@@ -128,16 +128,16 @@ export const App: React.FC = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-surface border border-border/70 p-4 rounded-xl shadow-md">
             <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs uppercase font-mono tracking-wider">Health Grade</span>
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs uppercase font-mono tracking-wider whitespace-nowrap">Health Grade</span>
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <HealthScoreBadge
                 grade={status?.latest_grade || 'A+'}
                 score={status?.latest_score}
                 size="lg"
               />
-              <span className="text-xs text-slate-400 font-mono">Formula Score</span>
+              <span className="text-xs text-slate-400 font-mono whitespace-nowrap">DR Score</span>
             </div>
           </div>
 
@@ -176,29 +176,29 @@ export const App: React.FC = () => {
         </div>
 
         {/* Quick Tools Bar for Mobile / Smaller Screens */}
-        <div className="flex md:hidden items-center justify-between gap-2 p-3 bg-surface border border-border/70 rounded-xl text-xs font-mono">
+        <div className="flex md:hidden items-center justify-between gap-2 p-2.5 bg-surface border border-border/70 rounded-xl text-xs font-mono">
           <button
             type="button"
             onClick={() => setIsSandboxesModalOpen(true)}
-            className="flex-1 py-2 px-3 rounded-lg bg-surface-elevated text-emerald-300 flex items-center justify-center gap-1.5"
+            className="flex-1 py-2 px-2 rounded-lg bg-surface-elevated text-emerald-300 flex items-center justify-center gap-1.5 whitespace-nowrap text-[11px]"
           >
-            <Terminal className="w-3.5 h-3.5" />
+            <Terminal className="w-3.5 h-3.5 shrink-0" />
             <span>Sandboxes ({activeSandboxCount})</span>
           </button>
           <button
             type="button"
             onClick={() => setIsBisectModalOpen(true)}
-            className="flex-1 py-2 px-3 rounded-lg bg-surface-elevated text-indigo-300 flex items-center justify-center gap-1.5"
+            className="flex-1 py-2 px-2 rounded-lg bg-surface-elevated text-indigo-300 flex items-center justify-center gap-1.5 whitespace-nowrap text-[11px]"
           >
-            <Clock className="w-3.5 h-3.5" />
+            <Clock className="w-3.5 h-3.5 shrink-0" />
             <span>Bisect</span>
           </button>
           <button
             type="button"
             onClick={() => setIsSchedulerModalOpen(true)}
-            className="flex-1 py-2 px-3 rounded-lg bg-surface-elevated text-blue-300 flex items-center justify-center gap-1.5"
+            className="flex-1 py-2 px-2 rounded-lg bg-surface-elevated text-blue-300 flex items-center justify-center gap-1.5 whitespace-nowrap text-[11px]"
           >
-            <Calendar className="w-3.5 h-3.5" />
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
             <span>Scheduler</span>
           </button>
         </div>

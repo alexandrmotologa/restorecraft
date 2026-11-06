@@ -38,7 +38,7 @@ export const HealthScoreBadge: React.FC<Props> = ({ grade, score, size = 'md' })
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md border font-mono tracking-wide ${getStyles()} ${getSizeClasses()}`}
+      className={`inline-flex items-center gap-1.5 rounded-md border font-mono tracking-wide whitespace-nowrap shrink-0 ${getStyles()} ${getSizeClasses()}`}
       title={score !== undefined ? `Score: ${score.toFixed(1)} / 100` : undefined}
     >
       <span className="font-extrabold">{grade}</span>

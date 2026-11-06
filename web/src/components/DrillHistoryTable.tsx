@@ -40,7 +40,7 @@ export const DrillHistoryTable: React.FC<Props> = ({ drills, onSelectDrill, onVi
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
-          <thead className="bg-surface-elevated/80 text-slate-400 uppercase font-mono tracking-wider border-b border-border/50 text-[11px]">
+          <thead className="bg-surface-elevated/80 text-slate-400 uppercase font-mono tracking-wider border-b border-border/50 text-[11px] whitespace-nowrap">
             <tr>
               <th className="py-3 px-5">Drill Name &amp; ID</th>
               <th className="py-3 px-4">Engine</th>
@@ -67,27 +67,27 @@ export const DrillHistoryTable: React.FC<Props> = ({ drills, onSelectDrill, onVi
                   className="hover:bg-slate-800/40 transition-colors group cursor-pointer"
                   onClick={() => onSelectDrill(drill)}
                 >
-                  <td className="py-3.5 px-5">
+                  <td className="py-3.5 px-5 whitespace-nowrap">
                     <div className="font-sans font-semibold text-slate-200 group-hover:text-blue-400 transition-colors text-sm">
                       {drill.name}
                     </div>
                     <div className="text-[11px] text-slate-500 font-mono mt-0.5">{drill.id}</div>
                   </td>
 
-                  <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 capitalize text-xs">
+                  <td className="py-3.5 px-4 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 capitalize text-xs shrink-0">
                       <Database className="w-3 h-3 text-slate-400" />
                       {drill.engine}
                     </span>
                   </td>
 
-                  <td className="py-3.5 px-4">
+                  <td className="py-3.5 px-4 whitespace-nowrap">
                     <HealthScoreBadge grade={drill.health_grade} score={drill.health_score} size="sm" />
                   </td>
 
-                  <td className="py-3.5 px-4">
+                  <td className="py-3.5 px-4 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="font-bold text-slate-200">
                         {drill.timings?.total_rto_ms ?? 0} ms
                       </span>
@@ -101,7 +101,7 @@ export const DrillHistoryTable: React.FC<Props> = ({ drills, onSelectDrill, onVi
                     </div>
                   </td>
 
-                  <td className="py-3.5 px-4">
+                  <td className="py-3.5 px-4 whitespace-nowrap">
                     {drill.audit?.integrity_ok ? (
                       <span className="inline-flex items-center gap-1 text-emerald-400 font-sans text-xs">
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -115,30 +115,30 @@ export const DrillHistoryTable: React.FC<Props> = ({ drills, onSelectDrill, onVi
                     )}
                   </td>
 
-                  <td className="py-3.5 px-4 text-slate-400 text-xs font-sans">
+                  <td className="py-3.5 px-4 text-slate-400 text-xs font-sans whitespace-nowrap">
                     {formattedDate}
                   </td>
 
-                  <td className="py-3.5 px-5 text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className="py-3.5 px-5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
                       {drill.certificate && (
                         <button
                           type="button"
                           onClick={() => onViewCert(drill)}
-                          className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition-colors font-sans font-medium"
+                          className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition-colors font-sans font-medium whitespace-nowrap shrink-0"
                           title="View signed recovery certificate"
                         >
-                          <Award className="w-3.5 h-3.5" />
+                          <Award className="w-3.5 h-3.5 shrink-0" />
                           Certificate
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => onSelectDrill(drill)}
-                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors font-sans"
+                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-colors font-sans whitespace-nowrap shrink-0"
                       >
                         Details
-                        <ChevronRight className="w-3 h-3 text-slate-400" />
+                        <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
                       </button>
                     </div>
                   </td>

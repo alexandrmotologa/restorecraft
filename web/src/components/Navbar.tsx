@@ -28,20 +28,20 @@ export const Navbar: React.FC<Props> = ({
 }) => {
   return (
     <header className="border-b border-border/80 bg-surface/90 backdrop-blur sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
         {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
             <Database className="w-5 h-5" />
           </div>
-          <div>
+          <div className="shrink-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-base tracking-tight text-white font-mono">restorecraft</span>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">
+              <span className="font-bold text-base tracking-tight text-white font-mono whitespace-nowrap">restorecraft</span>
+              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30 whitespace-nowrap shrink-0 hidden sm:inline-block">
                 DR Engine
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
+            <p className="text-[11px] text-slate-400 hidden 2xl:block whitespace-nowrap">
               Database Disaster Recovery Drill &amp; Parity Engine
             </p>
           </div>
@@ -49,20 +49,20 @@ export const Navbar: React.FC<Props> = ({
 
         {/* System Status Summary */}
         {status && (
-          <div className="hidden xl:flex items-center gap-4 text-xs font-mono">
-            <div className="flex items-center gap-2 bg-surface-elevated/40 px-3 py-1.5 rounded-lg border border-border/50">
+          <div className="hidden 2xl:flex items-center gap-3 text-xs font-mono shrink-0">
+            <div className="flex items-center gap-2 bg-surface-elevated/40 px-2.5 py-1.5 rounded-lg border border-border/50 whitespace-nowrap shrink-0">
               <span className="text-slate-400">Latest Grade:</span>
               <HealthScoreBadge grade={status.latest_grade} score={status.latest_score} size="sm" />
             </div>
 
-            <div className="flex items-center gap-2 bg-surface-elevated/40 px-3 py-1.5 rounded-lg border border-border/50">
+            <div className="flex items-center gap-2 bg-surface-elevated/40 px-2.5 py-1.5 rounded-lg border border-border/50 whitespace-nowrap shrink-0">
               <span className="text-slate-400">Avg RTO:</span>
-              <span className="text-blue-400 font-bold">{status.average_rto_ms} ms</span>
+              <span className="text-blue-400 font-bold whitespace-nowrap">{status.average_rto_ms} ms</span>
             </div>
 
-            <div className="flex items-center gap-2 bg-surface-elevated/40 px-3 py-1.5 rounded-lg border border-border/50">
+            <div className="flex items-center gap-2 bg-surface-elevated/40 px-2.5 py-1.5 rounded-lg border border-border/50 whitespace-nowrap shrink-0">
               <span className="text-slate-400">Success Rate:</span>
-              <span className="text-emerald-400 font-bold">
+              <span className="text-emerald-400 font-bold whitespace-nowrap">
                 {status.total_drills > 0
                   ? `${Math.round((status.successful_drills / status.total_drills) * 100)}%`
                   : 'N/A'}
@@ -72,22 +72,22 @@ export const Navbar: React.FC<Props> = ({
         )}
 
         {/* Feature Tools & Action CTAs */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Active Sandboxes Pill */}
           <button
             type="button"
             onClick={onOpenSandboxesModal}
-            className={`hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-colors ${
+            className={`hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-colors whitespace-nowrap shrink-0 ${
               activeSandboxCount > 0
                 ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20'
                 : 'bg-surface-elevated/50 border-border/60 text-slate-400 hover:bg-slate-800'
             }`}
             title="Inspect running ephemeral database sandboxes"
           >
-            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+            <Terminal className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span>Sandboxes</span>
             {activeSandboxCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-black text-[10px] font-bold">
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-black text-[10px] font-bold shrink-0">
                 {activeSandboxCount}
               </span>
             )}
@@ -97,10 +97,10 @@ export const Navbar: React.FC<Props> = ({
           <button
             type="button"
             onClick={onOpenBisectModal}
-            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-elevated/50 hover:bg-slate-800 text-slate-300 border border-border/60 text-xs font-mono transition-colors"
+            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-elevated/50 hover:bg-slate-800 text-slate-300 border border-border/60 text-xs font-mono transition-colors whitespace-nowrap shrink-0"
             title="Time-Travel Snapshot Bisect Engine"
           >
-            <Clock className="w-3.5 h-3.5 text-indigo-400" />
+            <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
             <span>Bisect</span>
           </button>
 
@@ -108,10 +108,10 @@ export const Navbar: React.FC<Props> = ({
           <button
             type="button"
             onClick={onOpenSchedulerModal}
-            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-elevated/50 hover:bg-slate-800 text-slate-300 border border-border/60 text-xs font-mono transition-colors"
+            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-elevated/50 hover:bg-slate-800 text-slate-300 border border-border/60 text-xs font-mono transition-colors whitespace-nowrap shrink-0"
             title="Automated Cron Drill Scheduler"
           >
-            <Calendar className="w-3.5 h-3.5 text-blue-400" />
+            <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span>Scheduler</span>
           </button>
 
@@ -120,7 +120,7 @@ export const Navbar: React.FC<Props> = ({
             href="/metrics"
             target="_blank"
             rel="noopener noreferrer"
-            className="p-2 rounded-lg bg-surface-elevated hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-border transition-colors hidden sm:block"
+            className="p-2 rounded-lg bg-surface-elevated hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-border transition-colors hidden sm:block shrink-0"
             title="Open Prometheus /metrics"
           >
             <BarChart2 className="w-4 h-4 text-purple-400" />
@@ -130,7 +130,7 @@ export const Navbar: React.FC<Props> = ({
           <button
             type="button"
             onClick={onRefresh}
-            className="p-2 rounded-lg bg-surface-elevated hover:bg-slate-800 text-slate-300 border border-border transition-colors"
+            className="p-2 rounded-lg bg-surface-elevated hover:bg-slate-800 text-slate-300 border border-border transition-colors shrink-0"
             title="Refresh dashboard metrics"
           >
             <RefreshCw className="w-4 h-4" />
@@ -141,20 +141,20 @@ export const Navbar: React.FC<Props> = ({
             type="button"
             onClick={onGenerateFixtures}
             disabled={generatingFixtures}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-elevated hover:bg-slate-800 text-slate-300 text-xs font-medium border border-border transition-colors disabled:opacity-50"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-elevated hover:bg-slate-800 text-slate-300 text-xs font-medium border border-border transition-colors disabled:opacity-50 whitespace-nowrap shrink-0"
             title="Generate testbed database snapshots"
           >
-            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-            {generatingFixtures ? 'Generating...' : 'Test Fixtures'}
+            <Sparkles className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <span>{generatingFixtures ? 'Generating...' : 'Test Fixtures'}</span>
           </button>
 
           {/* Execute Drill CTA */}
           <button
             type="button"
             onClick={onOpenRunModal}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95 whitespace-nowrap shrink-0"
           >
-            <Play className="w-3.5 h-3.5 fill-current" />
+            <Play className="w-3.5 h-3.5 fill-current shrink-0" />
             <span>Execute Drill</span>
           </button>
         </div>
