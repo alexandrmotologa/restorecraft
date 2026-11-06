@@ -1,0 +1,204 @@
+const fs = require('fs');
+const path = require('path');
+const { Resvg } = require('B:/workgit/node_modules/@resvg/resvg-js');
+
+function buildLogoSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="squircle-clip">
+      <rect x="24" y="24" width="976" height="976" rx="220" />
+    </clipPath>
+
+    <!-- Electric Cyan Glowing Optics -->
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="60%" stop-color="#00f5ff"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <linearGradient id="cyan-accent" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#00f5ff"/>
+    </linearGradient>
+
+    <!-- Volumetric Obsidian Armor Shading -->
+    <linearGradient id="armor-highlight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+
+    <linearGradient id="armor-light" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+
+    <linearGradient id="armor-mid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+
+    <linearGradient id="armor-shadow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <linearGradient id="armor-deep" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+
+    <filter id="gateway-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#0f172a" flood-opacity="0.15" />
+    </filter>
+  </defs>
+
+  <!-- Luxury White Squircle Container -->
+  <rect x="24" y="24" width="976" height="976" rx="220" fill="#ffffff" stroke="#e2e8f0" stroke-width="6" />
+
+  <g clip-path="url(#squircle-clip)">
+    <g transform="translate(512, 512)" filter="url(#gateway-shadow)">
+
+      <!-- Hexagonal Architectural Gateway Frame -->
+      <polygon points="
+        0,-380
+        329,-190
+        329,190
+        0,380
+        -329,190
+        -329,-190
+      " fill="none" stroke="#0f172a" stroke-width="36" stroke-linejoin="round" />
+
+      <!-- Inner Precision Telemetry Dash -->
+      <polygon points="
+        0,-345
+        298,-172
+        298,172
+        0,345
+        -298,172
+        -298,-172
+      " fill="none" stroke="#00f5ff" stroke-width="4" opacity="0.45" stroke-dasharray="16, 12" />
+
+      <!-- Watertight Solid Base Silhouette (Guarantees zero light-leak between vertices) -->
+      <path d="
+        M 0 -290
+        L 90 -240
+        L 160 -170
+        L 230 -80
+        L 260 40
+        L 230 160
+        L 150 250
+        L 60 290
+        L 0 300
+        L -60 290
+        L -150 250
+        L -230 160
+        L -260 40
+        L -230 -80
+        L -160 -170
+        L -90 -240
+        Z
+      " fill="#0b0f19" />
+
+      <!-- Back Carapace Tier 3 (Lowest Shield Wings) -->
+      <polygon points="0,300 150,250 230,160 120,170 0,220" fill="url(#armor-shadow)" />
+      <polygon points="0,300 -150,250 -230,160 -120,170 0,220" fill="url(#armor-deep)" />
+
+      <!-- Back Carapace Tier 2 (Lateral Defense Plates) -->
+      <polygon points="0,220 120,170 230,160 260,40 140,50 0,130" fill="url(#armor-mid)" />
+      <polygon points="0,220 -120,170 -230,160 -260,40 -140,50 0,130" fill="url(#armor-shadow)" />
+
+      <!-- Back Carapace Tier 1 (Upper Shoulder Shell) -->
+      <polygon points="0,130 140,50 260,40 230,-80 120,-60 0,30" fill="url(#armor-light)" />
+      <polygon points="0,130 -140,50 -260,40 -230,-80 -120,-60 0,30" fill="url(#armor-mid)" />
+
+      <!-- Outer Mantle Plates -->
+      <polygon points="0,30 120,-60 230,-80 160,-170 80,-140 0,-70" fill="url(#armor-highlight)" />
+      <polygon points="0,30 -120,-60 -230,-80 -160,-170 -80,-140 0,-70" fill="url(#armor-light)" />
+
+      <!-- Neck Guard & Collar Facets -->
+      <polygon points="0,-70 80,-140 160,-170 90,-240 0,-170" fill="url(#armor-light)" />
+      <polygon points="0,-70 -80,-140 -160,-170 -90,-240 0,-170" fill="url(#armor-mid)" />
+
+      <!-- Central Armored Head Crest (Crown) -->
+      <polygon points="0,-290 55,-230 0,-170" fill="url(#armor-highlight)" />
+      <polygon points="0,-290 -55,-230 0,-170" fill="url(#armor-light)" />
+
+      <!-- Lateral Cranial Facets -->
+      <polygon points="55,-230 90,-240 75,-160 0,-170" fill="url(#armor-mid)" />
+      <polygon points="-55,-230 -90,-240 -75,-160 0,-170" fill="url(#armor-shadow)" />
+
+      <!-- Facial Muzzle & Brow Armor -->
+      <polygon points="0,-170 75,-160 45,-90 0,-110" fill="url(#armor-light)" />
+      <polygon points="0,-170 -75,-160 -45,-90 0,-110" fill="url(#armor-mid)" />
+
+      <!-- Lower Jaw & Chin Plate -->
+      <polygon points="0,-110 45,-90 25,-40 0,-50" fill="url(#armor-mid)" />
+      <polygon points="0,-110 -45,-90 -25,-40 0,-50" fill="url(#armor-shadow)" />
+
+      <!-- Electric Cyan Predator Eyes (Almond Geometric Sockets) -->
+      <!-- Left Eye -->
+      <polygon points="-65,-155 -38,-135 -30,-148 -58,-160" fill="url(#cyan-glow)" />
+      <polygon points="-58,-150 -42,-140 -35,-145 -52,-152" fill="#ffffff" opacity="0.8" />
+
+      <!-- Right Eye -->
+      <polygon points="65,-155 38,-135 30,-148 58,-160" fill="url(#cyan-glow)" />
+      <polygon points="58,-150 42,-140 35,-145 52,-152" fill="#ffffff" opacity="0.8" />
+
+      <!-- Central Hexagonal Disaster Recovery Core Emblem -->
+      <polygon points="
+        0,-20
+        40,5
+        40,55
+        0,80
+        -40,55
+        -40,5
+      " fill="#0b0f19" stroke="url(#cyan-accent)" stroke-width="5" stroke-linejoin="round" />
+
+      <!-- Inner Parity Key Node in Core -->
+      <polygon points="
+        0,-5
+        22,8
+        22,38
+        0,52
+        -22,38
+        -22,8
+      " fill="url(#cyan-glow)" />
+
+      <circle cx="0" cy="23" r="6" fill="#ffffff" />
+
+      <!-- Interlocking Scale Edge Traces (Subtle Technical Seams) -->
+      <line x1="0" y1="30" x2="120" y2="-60" stroke="#00f5ff" stroke-width="2" opacity="0.3" />
+      <line x1="0" y1="30" x2="-120" y2="-60" stroke="#00f5ff" stroke-width="2" opacity="0.3" />
+      <line x1="0" y1="130" x2="140" y2="50" stroke="#00f5ff" stroke-width="2" opacity="0.3" />
+      <line x1="0" y1="130" x2="-140" y2="50" stroke="#00f5ff" stroke-width="2" opacity="0.3" />
+
+    </g>
+  </g>
+</svg>`;
+}
+
+async function run() {
+  const outputDir = path.resolve(__dirname, '../docs/images');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const svg = buildLogoSvg();
+  const svgPath = path.join(outputDir, 'logo.svg');
+  const pngPath = path.join(outputDir, 'logo.png');
+
+  fs.writeFileSync(svgPath, svg, 'utf8');
+
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: 'width', value: 1024 },
+  });
+  const pngData = resvg.render().asPng();
+  fs.writeFileSync(pngPath, pngData);
+
+  console.log('✓ Successfully generated logo.svg and rendered 1024x1024 logo.png');
+}
+
+run().catch((err) => {
+  console.error('Error generating logo:', err);
+  process.exit(1);
+});

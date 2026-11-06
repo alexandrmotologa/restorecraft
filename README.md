@@ -1,8 +1,33 @@
-# restorecraft
+<p align="center">
+  <img src="docs/images/logo.png?raw=true" alt="RestoreCraft Logo" width="130" style="border-radius: 24px;" />
+</p>
 
-Automated database disaster recovery drill, backup verification, and parity engine for PostgreSQL, MySQL, and SQLite.
+<h1 align="center">restorecraft</h1>
 
-An untested backup is not a verified backup. `restorecraft` runs automated disaster recovery drills against real backup snapshots, verifies relational constraints, checks schema and row count parity, benchmarks your Recovery Time Objective (RTO), detects unmasked sensitive data, and issues cryptographically signed recovery certificates.
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go 1.23+" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 19" />
+  <img src="https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Compliance-SOC%202%20%7C%20ISO%2027001%20%7C%20HIPAA-blue?style=flat-square" alt="Compliance Standards" />
+  <img src="https://img.shields.io/badge/Prometheus-%2Fmetrics-E6522C?style=flat-square&logo=prometheus&logoColor=white" alt="Prometheus Metrics" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License: MIT" /></a>
+</p>
+
+<p align="center">
+  Automated database disaster recovery drill, backup verification, and parity engine for PostgreSQL, MySQL, and SQLite.
+</p>
+
+<p align="center">
+  <img src="docs/images/restorecraft_demo.gif?raw=true" alt="RestoreCraft Recovery Cockpit Demo" width="100%" style="border-radius: 12px; border: 1px solid #1e293b;" />
+</p>
+
+---
+
+## The Core Problem
+
+An untested backup is not a verified backup. Organizations frequently discover that backup snapshots are damaged only during a production outage. Database dumps fail due to storage bit-rot, truncated network transfers, unvalidated foreign key violations, or missing extensions.
+
+`restorecraft` runs automated disaster recovery drills against real backup snapshots, verifies relational constraints, checks schema and row count parity, benchmarks your Recovery Time Objective (RTO), detects unmasked sensitive data, and issues cryptographically signed recovery certificates.
 
 ## Key Capabilities
 
@@ -18,6 +43,50 @@ An untested backup is not a verified backup. `restorecraft` runs automated disas
 - **Compliance Evidence Pack**: Exports printable, audit-grade Disaster Recovery Compliance Reports with HMAC-SHA256 digital seals for SOC 2 Type II, ISO/IEC 27001, and HIPAA compliance reviews.
 - **Multi-Channel Alerting**: Dispatches instant notifications to Telegram, Slack, and Discord when drills fail or exceed SLA thresholds.
 - **Embedded React 19 Cockpit**: Single-binary deployment with an embedded dark-mode web dashboard displaying live logs, health scores, and RTO trendlines.
+
+## Visual Evidence & Interface
+
+### Live Disaster Recovery Cockpit
+Full overview showing health grades, mathematical RTO trendlines, live Server-Sent Events telemetry, and complete drill execution history.
+
+<p align="center">
+  <img src="docs/images/restorecraft_overview.png?raw=true" alt="RestoreCraft Desktop Overview" width="100%" style="border-radius: 10px; border: 1px solid #1e293b;" />
+</p>
+
+### Detailed Drill Inspection & Phase Stopwatch
+Millisecond-resolution breakdown across snapshot fetch, decompression, sandbox boot, restore injection, and integrity auditing.
+
+<p align="center">
+  <img src="docs/images/restorecraft_drill_detail.png?raw=true" alt="RestoreCraft Drill Detail Modal" width="100%" style="border-radius: 10px; border: 1px solid #1e293b;" />
+</p>
+
+### Audit-Grade Compliance Evidence Pack
+Printable report designed for SOC 2 Type II (CC9.1/CC9.2), ISO/IEC 27001:2022 (A.12.3.1), and HIPAA verification, complete with HMAC-SHA256 digital signatures and executive sign-off blocks.
+
+<p align="center">
+  <img src="docs/images/restorecraft_compliance.png?raw=true" alt="RestoreCraft Compliance Pack" width="100%" style="border-radius: 10px; border: 1px solid #1e293b;" />
+</p>
+
+### Interactive Ephemeral Sandbox SQL Console
+Query restored databases directly inside ephemeral sandboxes using read-only SQL queries to inspect table data before teardown.
+
+<p align="center">
+  <img src="docs/images/restorecraft_sql_console.png?raw=true" alt="RestoreCraft Interactive SQL Console" width="100%" style="border-radius: 10px; border: 1px solid #1e293b;" />
+</p>
+
+### Time-Travel Snapshot Bisect Engine
+Chronological evaluation across backup directories to locate the exact snapshot where data corruption was introduced.
+
+<p align="center">
+  <img src="docs/images/restorecraft_bisect.png?raw=true" alt="RestoreCraft Time-Travel Bisect" width="100%" style="border-radius: 10px; border: 1px solid #1e293b;" />
+</p>
+
+### Multi-Device Responsiveness (Mobile View)
+Full responsive design adapted for smartphones and tablets with touch-friendly quick action toolbars.
+
+<p align="center">
+  <img src="docs/images/restorecraft_mobile.png?raw=true" alt="RestoreCraft Mobile View" width="360" style="border-radius: 16px; border: 1px solid #1e293b;" />
+</p>
 
 ## Quickstart
 
@@ -80,10 +149,14 @@ This generates:
 
 ### Verifying a Recovery Certificate
 
-Verify the authenticity of a signed Disaster Recovery Certificate:
+Verify the authenticity of a signed Disaster Recovery Certificate using either the JSON file or its database ID:
 
 ```bash
-./restorecraft verify-cert --cert ./certificates/cert-drill-001.json --secret my-signing-key
+# Verify via exported certificate JSON file
+./restorecraft verify-cert --cert ./data/certificates/cert-drill-001.json
+
+# Or verify directly by database certificate ID
+./restorecraft verify-cert --id cert-drill-cli-drill-1793999059-1793999059
 ```
 
 ## Architecture

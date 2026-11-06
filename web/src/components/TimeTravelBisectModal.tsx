@@ -15,6 +15,14 @@ export const TimeTravelBisectModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [report, setReport] = useState<BisectReport | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!isOpen) return null;
 
   const handleRunBisect = async (e: React.FormEvent) => {

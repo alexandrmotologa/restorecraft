@@ -9,6 +9,14 @@ interface Props {
 }
 
 export const ComplianceReportModal: React.FC<Props> = ({ drill, onClose }) => {
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!drill) return null;
 
   const cert = drill.certificate;

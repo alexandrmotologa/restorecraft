@@ -11,6 +11,14 @@ interface Props {
 }
 
 export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert, onOpenCompliance }) => {
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!drill) return null;
 
   const total = drill.timings?.total_rto_ms || 1;

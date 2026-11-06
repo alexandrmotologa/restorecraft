@@ -11,11 +11,11 @@ interface Props {
 export const LiveLogStream: React.FC<Props> = ({ logs, isConnected, onClearLogs }) => {
   const [autoScroll, setAutoScroll] = useState(true);
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (autoScroll && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (autoScroll && containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
   }, [logs, autoScroll]);
 
@@ -95,7 +95,7 @@ export const LiveLogStream: React.FC<Props> = ({ logs, isConnected, onClearLogs 
       </div>
 
       {/* Terminal Output */}
-      <div className="flex-1 p-4 font-mono text-xs overflow-y-auto space-y-1.5 select-text">
+      <div ref={containerRef} className="flex-1 p-4 font-mono text-xs overflow-y-auto space-y-1.5 select-text">
         {filtered.length === 0 ? (
           <div className="text-slate-600 italic py-8 text-center font-sans">
             Awaiting drill execution events... Trigger a disaster recovery drill to stream telemetry.
@@ -127,7 +127,6 @@ export const LiveLogStream: React.FC<Props> = ({ logs, isConnected, onClearLogs 
             );
           })
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );
