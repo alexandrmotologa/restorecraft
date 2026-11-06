@@ -5,9 +5,9 @@
 *.so
 *.dylib
 bin/
-dist/
+/dist/
 build/
-restorecraft
+/restorecraft
 
 # Go workspace and test artifacts
 *.test
@@ -18,7 +18,6 @@ vendor/
 # Node and web frontend
 node_modules/
 web/node_modules/
-web/dist/
 .vite/
 
 # Application runtime data

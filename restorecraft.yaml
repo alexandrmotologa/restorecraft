@@ -1,0 +1,38 @@
+version: "1"
+
+server:
+  host: "127.0.0.1"
+  port: 8080
+  data_dir: "./data"
+
+security:
+  signing_secret: "restorecraft-authority-secret-key-production-ready"
+  signer_identity: "restorecraft-drill-authority"
+
+defaults:
+  rto_sla_seconds: 60
+  sandbox_memory_mb: 2048
+  cleanup_on_failure: true
+
+storage:
+  local:
+    enabled: true
+    base_dir: "./test-backups"
+
+drills:
+  - id: "ecommerce-sqlite-drill"
+    name: "Production E-commerce SQLite Snapshot"
+    engine: "sqlite"
+    schedule: "0 3 * * *"
+    storage_type: "local"
+    snapshot_path: "valid_ecommerce.sqlite"
+    rto_sla_seconds: 45
+    parity:
+      expected_tables:
+        - "users"
+        - "products"
+        - "orders"
+        - "order_items"
+      min_row_counts:
+        users: 5
+        orders: 5
