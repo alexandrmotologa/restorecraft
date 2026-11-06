@@ -1,73 +1,81 @@
-# `restorecraft` — Architecture & Engineering Master Plan
+# restorecraft: Architecture and Engineering Master Plan
 
-> **Automated Database Disaster Recovery Drill, Backup Verification & Parity Engine (PostgreSQL, MySQL, SQLite)**  
-> *Solving "An Untested Backup is Not a Backup" in a Single Binary (Go + React 19)*
-
----
-
-## 1. Executive Summary & Problem Space
-
-### The Core Problem
-The most dangerous misconception in IT operations is assuming that creating backup files (`pg_dump`, `mysqldump`, `litestream`, `xtrabackup`) means you can restore them. In reality:
-- Dump files frequently suffer from silent storage bit-rot, truncated transfers, or incompatible server major version changes.
-- PostgreSQL database extensions (e.g., `pgvector`, `postgis`, `timescaledb`) might be missing on the target host.
-- Corrupted foreign keys or uncommitted transactions can cause the restore process to abort halfway through.
-- When an actual disaster strikes, teams face disastrous downtime because their Recovery Time Objective (RTO) was never benchmarked or tested under realistic conditions.
-
-### The Solution: `restorecraft`
-`restorecraft` is an automated, single-binary disaster recovery drill daemon. On a configured schedule (e.g., daily at 03:00 UTC), it pulls the latest database backup from cloud storage (AWS S3, Cloudflare R2, MinIO, or local disk), spins up an isolated ephemeral sandbox environment, executes a complete restore from scratch, runs exhaustive structural and logical integrity audits, verifies row-count parity against production metadata, benchmarks RTO, and issues a cryptographically signed **Disaster Recovery Health Certificate**.
-
-If a backup fails to restore or exceeds your RTO threshold, `restorecraft` fires immediate alerts to Telegram, Slack, or PagerDuty.
+> Automated Database Disaster Recovery Drill, Backup Verification and Parity Engine (PostgreSQL, MySQL, SQLite)
+> Single binary daemon and CLI built in Go with an embedded React 19 Recovery Cockpit.
 
 ---
 
-## 2. System Architecture & Drill Lifecycle
+## 1. Executive Summary and Problem Space
+
+### The Problem
+Organizations often assume that scheduled database dumps (`pg_dump`, `mysqldump`, `litestream`, or cloud snapshots) guarantee disaster recovery. In practice:
+- Dump files silently suffer from storage bit-rot, truncated uploads, or incompatible database major version upgrades.
+- Missing database extensions or changed collation configurations cause restores to fail unexpectedly.
+- Corrupted foreign key references or uncommitted transaction logs abort restoration halfway.
+- Teams have no empirical measurement of their Recovery Time Objective (RTO) under realistic restore conditions until an actual outage occurs.
+
+### The Solution: restorecraft
+`restorecraft` is an automated disaster recovery drill daemon and CLI tool. On a scheduled cron or on-demand trigger:
+1. Pulls database backup snapshots from local storage, AWS S3, Cloudflare R2, or MinIO.
+2. Boots an isolated ephemeral sandbox environment (Docker container or native local process runner).
+3. Executes complete database restoration from the snapshot while benchmarking RTO at millisecond resolution.
+4. Performs deep structural integrity checks, foreign key constraint validation, and row-count parity verification.
+5. Emits a cryptographically signed Disaster Recovery Certificate (HMAC-SHA256).
+6. Alerts incident teams via Telegram, Slack, Discord, or generic webhooks when health scores drop or RTO thresholds are exceeded.
+7. Serves a real-time web recovery cockpit built in React 19 embedded directly in the Go binary.
+
+---
+
+## 2. System Architecture
 
 ```
-[ Cloud Storage (S3 / R2 / GCS) ]
-               │
-               │  1. Scheduled Pull (Daily / Weekly)
-               ▼
+[ Cloud Storage: S3 / R2 / MinIO / Local Disk ]
+                     │
+                     │  1. Scheduled or On-Demand Pull
+                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        `restorecraft` Daemon                           │
+│                          restorecraft Core                             │
 │                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Snapshot Fetcher & Checksum Verifier (SHA-256 / Gzip / Zstd)     │  │
+│  │ Snapshot Fetcher & Stream Decompressor (Gzip / Zstd / Raw)       │  │
+│  │ - Computes streaming SHA-256 checksum against metadata           │  │
 │  └──────────────────────────────────┬───────────────────────────────┘  │
 │                                     │                                  │
 │                                     ▼                                  │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Ephemeral Sandbox Orchestrator (Docker Engine API / Subprocess)  │  │
-│  │ - Boots isolated ephemeral Postgres / MySQL / SQLite instance    │  │
-│  │ - Configures memory limits, isolated networks, temp volumes      │  │
+│  │ Ephemeral Sandbox Orchestrator                                   │  │
+│  │ - Docker Engine API driver (isolated containers, tmpfs, bridge)  │  │
+│  │ - Native process driver (pure-Go SQLite / local process testbed) │  │
+│  │ - Guaranteed auto-cleanup on drill completion or cancellation    │  │
 │  └──────────────────────────────────┬───────────────────────────────┘  │
 │                                     │                                  │
 │                                     ▼                                  │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Automated Restoration Runner & Timer                             │  │
-│  │ - Streams dump into sandbox (`pg_restore`, `mysql`, `.restore`)  │  │
-│  │ - High-resolution stopwatch records RTO (Recovery Time Objective)│  │
+│  │ Restoration Engine & Phase Stopwatch                             │  │
+│  │ - Streams dump into sandbox (`pg_restore`, `mysql`, SQLite API)  │  │
+│  │ - Measures individual phase durations and total RTO              │  │
 │  └──────────────────────────────────┬───────────────────────────────┘  │
 │                                     │                                  │
 │                                     ▼                                  │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Deep Integrity & Parity Auditor                                  │  │
-│  │ - Foreign key constraint validation across all relational tables │  │
-│  │ - Index corruption scan & `ANALYZE` / `PRAGMA integrity_check`   │  │
-│  │ - Row count and schema parity check against production metadata  │  │
+│  │ Integrity & Parity Auditor                                       │  │
+│  │ - Relational foreign key and orphan row scans                    │  │
+│  │ - Page checksum and index validity checks                        │  │
+│  │ - Row count and schema parity comparisons                        │  │
 │  └──────────────────────────────────┬───────────────────────────────┘  │
 │                                     │                                  │
 │         ┌───────────────────────────┴──────────────────────────┐       │
 │         ▼                                                      ▼       │
 │  ┌───────────────────────────────┐           ┌──────────────────────┐  │
-│  │ Teardown & Ephemeral Cleanup  │           │ Issue DR Certificate │  │
-│  │ (Zero persistent disk waste)  │           │ & Dispatch Alerts    │  │
+│  │ Ephemeral Sandbox Teardown    │           │ Issue DR Certificate │  │
+│  │ - Clean container/temp prune  │           │ & Dispatch Alerts    │  │
 │  └───────────────────────────────┘           └──────────────────────┘  │
 │                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │ Embedded React 19 Recovery Cockpit                               │  │
-│  │ - Backup Health Score (A+ to F), RTO trend charts, drill logs    │  │
-│  │ - 1-Click manual on-demand Disaster Recovery Drill trigger       │  │
+│  │ - Health score grade (A+ through F) with deduction breakdown     │  │
+│  │ - RTO trendline charts and live SSE log stream for active drills │  │
+│  │ - Certificate verification inspector and manual drill launcher   │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -78,118 +86,168 @@ If a backup fails to restore or exceeds your RTO threshold, `restorecraft` fires
 
 | Layer | Component | Specification |
 | :--- | :--- | :--- |
-| **Language & Runtime** | Go 1.23+ | Native cross-platform daemon, concurrent sandbox orchestration, minimal RAM footprint |
-| **Container & Sandbox Driver** | Docker API SDK + Subprocess | Manages ephemeral containers with isolated virtual networks and auto-pruning |
-| **Database Engines Supported** | PostgreSQL (12–17), MySQL (8.0+), MariaDB, SQLite 3 | Native dump format parsers (`.sql`, `.dump`, `.tar`, `.gz`, `.zst`) |
-| **Storage Connectors** | S3 API, Cloudflare R2, MinIO, Local Disk | Multi-part streaming downloads with resume and SHA-256 integrity validation |
-| **State Persistence** | Embedded SQLite 3.45+ | Stores drill historical metrics, RTO tracking, and health certificates |
-| **Notification Engine** | Multi-channel Webhooks | Telegram Bot, Slack incoming webhooks, Discord, and PagerDuty |
-| **Embedded Web UI** | React 19 + TypeScript + Vite | Built as a single bundle and served via Go `//go:embed` |
-| **UI Styling** | Tailwind CSS + Lucide Icons | High-contrast dark-mode reliability engineering cockpit |
+| Core Language | Go 1.23+ | Clean concurrent daemon, minimal memory footprint, cross-platform compilation |
+| Sandbox Drivers | Docker Engine API SDK + Native Process | Ephemeral containers for Postgres/MySQL; pure-Go runner for SQLite |
+| Database Engines | PostgreSQL 12-17, MySQL 8.0+, SQLite 3 | Native dump streaming (`.sql`, `.dump`, `.gz`, `.zst`, `.sqlite`) |
+| Storage Sources | AWS S3, Cloudflare R2, MinIO, Local Disk | Streaming pull with on-the-fly checksum validation |
+| Persistence Store | Embedded SQLite | Stores drill run history, phase metrics, and recovery certificates |
+| Cryptography | HMAC-SHA256 | Cryptographically signed disaster recovery certificates |
+| Web Cockpit | React 19, TypeScript, Vite, Tailwind CSS | High-contrast reliability engineering UI embedded via `embed.FS` |
+| Alerting | Webhooks | Telegram Bot API, Slack Webhooks, Discord Webhooks, Generic Webhooks |
 
 ---
 
-## 4. Repository & Directory Structure
+## 4. Repository and Directory Structure
 
 ```
 B:\workgit\restorecraft\
 ├── cmd\
 │   └── restorecraft\
-│       └── main.go                 # Daemon entrypoint, CLI commands (`drill`, `serve`, `verify`)
+│       └── main.go                     # CLI entrypoint (serve, drill, verify-cert, fixtures)
 ├── internal\
 │   ├── config\
-│   │   └── config.go               # YAML configuration (S3 credentials, databases, drill crons)
-│   ├── orchestrator\
-│   │   ├── runner.go               # Disaster recovery drill pipeline orchestrator
-│   │   ├── sandbox.go              # Ephemeral Docker / local process sandbox manager
-│   │   └── timer.go                # High-precision RTO timer and phase profiler
-│   ├── database\
-│   │   ├── postgres.go             # PostgreSQL restore runner and integrity auditor
-│   │   ├── mysql.go                # MySQL / MariaDB restore runner and validation queries
-│   │   └── sqlite.go               # SQLite memory/file restore and `PRAGMA` auditor
-│   ├── auditor\
-│   │   ├── constraints.go          # Foreign key and orphan row detector
-│   │   ├── indexes.go              # Index corruption and accessibility scanner
-│   │   └── parity.go               # Row count and schema diff comparison engine
+│   │   ├── config.go                   # YAML configuration loader and defaults
+│   │   └── config_test.go              # Configuration unit tests
+│   ├── models\
+│   │   └── models.go                   # Drill run, phase timings, health grade, and certificate types
 │   ├── storage\
-│   │   ├── s3.go                   # S3 / R2 / MinIO snapshot downloader
-│   │   └── local.go                # Local disk snapshot manager
+│   │   ├── storage.go                  # Storage provider interface
+│   │   ├── local.go                    # Local directory snapshot manager
+│   │   ├── s3.go                       # S3, R2, and MinIO streaming reader
+│   │   └── decompress.go               # Gzip, Zstd, and raw stream filters
+│   ├── sandbox\
+│   │   ├── sandbox.go                  # Sandbox interface and lifecycle management
+│   │   ├── docker.go                   # Ephemeral Docker container orchestrator
+│   │   └── native.go                   # Native process and SQLite in-memory sandbox
+│   ├── engine\
+│   │   ├── engine.go                   # Database engine restore and audit interface
+│   │   ├── sqlite.go                   # SQLite restore, PRAGMA checks, and parity audits
+│   │   ├── postgres.go                 # PostgreSQL pg_restore/psql runner and constraint auditor
+│   │   └── mysql.go                    # MySQL dump runner and table integrity auditor
+│   ├── auditor\
+│   │   ├── auditor.go                  # Audit runner orchestrator
+│   │   ├── constraints.go              # Foreign key and referential constraint checks
+│   │   ├── parity.go                   # Schema and table row count parity comparisons
+│   │   └── health.go                   # Health score formula and letter grade calculator
 │   ├── certificate\
-│   │   ├── generator.go            # Cryptographically signed Disaster Recovery Certificate
-│   │   └── schema.go               # Certificate JSON data schema
+│   │   ├── signer.go                   # HMAC-SHA256 certificate generation and signing
+│   │   └── verifier.go                 # Standalone certificate signature validation
 │   ├── notifier\
-│   │   ├── telegram.go             # Telegram Bot notification dispatcher
-│   │   └── slack.go                # Slack webhook alert dispatcher
-│   └── store\
-│       ├── sqlite.go               # Historical drill database connector
-│       └── models.go               # Drill run records, logs, and RTO data structures
+│   │   ├── notifier.go                 # Alert dispatcher interface
+│   │   ├── telegram.go                 # Telegram bot notifier
+│   │   ├── slack.go                    # Slack webhook notifier
+│   │   └── discord.go                  # Discord webhook notifier
+│   ├── store\
+│   │   ├── store.go                    # Drill history SQLite database repository
+│   │   └── store_test.go               # History persistence unit tests
+│   ├── orchestrator\
+│   │   ├── orchestrator.go             # Drill execution coordinator and log hub
+│   │   └── timer.go                    # High-precision phase stopwatch
+│   ├── fixtures\
+│   │   └── fixtures.go                 # Synthetic test database and corrupted snapshot generator
+│   └── server\
+│       ├── server.go                   # HTTP REST server and SSE live log streamer
+│       └── handlers.go                 # API endpoints for drills, history, certificates, and config
 ├── web\
 │   ├── src\
 │   │   ├── components\
-│   │   │   ├── HealthScoreBadge.tsx# Overall backup grade (A+, A, B, C, F)
-│   │   │   ├── RtoChart.tsx        # Recovery Time Objective history and trendline
-│   │   │   ├── DrillHistory.tsx    # Chronological table of drill runs with deep log modal
-│   │   │   └── TriggerDrillBtn.tsx # 1-Click manual drill launcher with live log stream
-│   │   ├── App.tsx                 # Root dashboard cockpit
-│   │   ├── main.tsx                # React 19 entrypoint
-│   │   └── index.css               # Tailwind CSS declarations
+│   │   │   ├── HealthScoreBadge.tsx    # Health score grade visual badge
+│   │   │   ├── RtoChart.tsx            # Recovery Time Objective trendline chart
+│   │   │   ├── DrillHistoryTable.tsx   # Chronological drill runs with status pills
+│   │   │   ├── DrillDetailModal.tsx    # Detailed phase timings, constraints, and audit logs
+│   │   │   ├── RunDrillDialog.tsx      # On-demand manual drill modal with engine picker
+│   │   │   ├── LiveLogStream.tsx       # Real-time console log viewer with SSE connection
+│   │   │   ├── CertificateViewer.tsx   # Cryptographic certificate modal with signature check
+│   │   │   └── Navbar.tsx              # Cockpit navigation and system status indicator
+│   │   ├── types\
+│   │   │   └── api.ts                  # TypeScript definitions matching Go models
+│   │   ├── App.tsx                     # Main cockpit view and state management
+│   │   ├── main.tsx                    # React 19 root
+│   │   └── index.css                   # Tailwind CSS styling and theme definitions
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── vite.config.ts
-├── Makefile                        # Build, test, and container packaging
-├── Dockerfile                      # Self-hosted single container image with Docker socket support
-├── README.md                       # Documentation, architecture, and configuration examples
-└── MASTER_PLAN.md                  # This master specification
+├── docs\
+│   ├── architecture.md                 # Detailed architecture documentation
+│   ├── configuration.md                # Configuration options and environment variables
+│   └── disaster_recovery_playbook.md   # Production DR drill best practices
+├── Makefile                            # Build, test, and release targets
+├── Dockerfile                          # Production container image
+├── README.md                           # Documentation, quickstart, and configuration guides
+└── MASTER_PLAN.md                      # This specification
 ```
 
 ---
 
-## 5. Audit Matrix & Health Scoring Formula
+## 5. Audit Matrix and Health Scoring Formula
 
 ### Deep Integrity Audit Checklists
 
-| Engine | Phase 1: Structural Integrity | Phase 2: Relational Integrity | Phase 3: Parity Checks |
+| Database Engine | Structural Integrity | Relational Integrity | Parity Checks |
 | :--- | :--- | :--- | :--- |
-| **PostgreSQL** | `pg_restore --clean --if-exists`, check exit code, `pg_checksums` | `SELECT conrelid::regclass, confrelid::regclass FROM pg_constraint WHERE NOT convalidated;` | Validate table counts against production snapshot metadata |
-| **MySQL** | `mysql < dump.sql`, verify warnings & errors | `CHECK TABLE tablename EXTENDED;`, foreign key check mode enabled | Row count validation per table, schema hash comparison |
-| **SQLite** | Restore via online backup API | `PRAGMA integrity_check;`, `PRAGMA foreign_key_check;` | Compare `dbstat` page counts and total row sums |
+| PostgreSQL | `pg_restore --clean --if-exists`, verify non-zero exit codes, detect parse warnings | Validate unvalidated constraints in `pg_constraint` where `NOT convalidated` | Compare table counts and schema column hashes against manifest |
+| MySQL | `mysql < dump.sql`, verify warnings, SQL errors, and table locks | `CHECK TABLE tablename EXTENDED`, verify foreign key check state | Verify row count per table against production snapshot metadata |
+| SQLite | Restore via online backup API or file copy | `PRAGMA integrity_check`, `PRAGMA foreign_key_check` | Compare page counts, schema table counts, and row counts |
 
-### Backup Health Grade Formula
+### Health Grade Calculation
+
 $$\text{Health Score} = 100 - (\text{DataLossPenalty} \times 50) - (\text{ConstraintViolations} \times 20) - (\text{RTO Overrun Penalty})$$
-- **Grade A+ (95–100%)**: Zero errors, all constraints intact, RTO under SLA threshold.
-- **Grade B (75–94%)**: Restores cleanly, but minor non-critical warnings or RTO approaching threshold.
-- **Grade F (< 50%)**: Restoration failed, truncated file, broken foreign keys, or unrecoverable error.
+
+- **Grade A+ (95 to 100)**: Restoration succeeded cleanly, all foreign keys and constraints intact, RTO strictly below SLA threshold.
+- **Grade A (85 to 94)**: Restoration succeeded cleanly, all constraints intact, RTO within SLA threshold.
+- **Grade B (70 to 84)**: Restoration succeeded, non-critical warnings detected or RTO exceeded SLA threshold by less than 25%.
+- **Grade C (50 to 69)**: Restoration succeeded but foreign key violations or schema discrepancies detected.
+- **Grade F (0 to 49)**: Restoration failed, corrupted archive, broken file header, unrecoverable query error, or total timeout.
 
 ---
 
 ## 6. Implementation Roadmap
 
-### Phase 1: Sandbox Orchestration & Engine Drivers
-- [ ] Initialize Go module `github.com/alexandrmotologa/restorecraft`.
-- [ ] Implement Docker Engine API client to launch ephemeral PostgreSQL and MySQL containers.
-- [ ] Implement SQLite sandbox runner without Docker requirements.
-- [ ] Build auto-pruning logic ensuring zero orphaned containers or volumes remain on disk.
+### Phase 1: Core Foundation and Models
+- Initialize Go module `github.com/alexandrmotologa/restorecraft`.
+- Define core data models for drill runs, phase timings, audit reports, and certificates.
+- Implement configuration parser (`internal/config`) with YAML loading, environment overrides, and SLA thresholds.
+- Implement embedded SQLite persistence store (`internal/store`) for recording drill runs and metrics.
 
-### Phase 2: Storage Fetcher & Database Restoration Runners
-- [ ] Implement S3/R2 snapshot puller with streaming un-gzip and un-zstd decompression.
-- [ ] Implement PostgreSQL restore driver (`pg_restore` and `psql` pipelines).
-- [ ] Implement MySQL restore driver (`mysql` streaming pipeline).
-- [ ] Capture millisecond-resolution timestamps across each drill phase (fetch, unpack, restore, audit).
+### Phase 2: Storage Connectors and Decompression Engine
+- Implement local file snapshot provider (`internal/storage/local.go`).
+- Implement S3, Cloudflare R2, and MinIO snapshot provider (`internal/storage/s3.go`).
+- Implement streaming decompressors for gzip, zstd, and raw SQL/tar streams (`internal/storage/decompress.go`).
+- Implement on-the-fly SHA-256 streaming checksum calculator.
 
-### Phase 3: Integrity Auditor & Parity Verifier
-- [ ] Implement relational foreign key constraint validation queries.
-- [ ] Implement table row-count and schema hash parity validator.
-- [ ] Implement JSON Disaster Recovery Certificate generator with HMAC-SHA256 digital signature.
-- [ ] Implement Telegram and Slack alert dispatchers for drill outcomes.
+### Phase 3: Ephemeral Sandbox and Database Restore Runners
+- Implement sandbox interface and lifecycle management (`internal/sandbox/sandbox.go`).
+- Implement ephemeral Docker container orchestrator (`internal/sandbox/docker.go`) with tmpfs and isolated networks.
+- Implement native isolated process and pure-Go SQLite sandbox runner (`internal/sandbox/native.go`).
+- Implement database restoration engines for SQLite, PostgreSQL, and MySQL (`internal/engine/`).
+- Implement high-resolution phase stopwatch for accurate RTO profiling (`internal/orchestrator/timer.go`).
 
-### Phase 4: Embedded React 19 Recovery Cockpit
-- [ ] Scaffold Vite + React 19 frontend in `web/`.
-- [ ] Build interactive drill history with real-time log streaming.
-- [ ] Build RTO historical performance line charts.
-- [ ] Build 1-click on-demand drill execution button.
-- [ ] Embed static assets into the Go binary using `//go:embed`.
+### Phase 4: Integrity Auditor, Parity Engine and Certificate Signer
+- Implement relational constraint auditor for SQLite, PostgreSQL, and MySQL (`internal/auditor/constraints.go`).
+- Implement table row count and schema parity comparator (`internal/auditor/parity.go`).
+- Implement health score formula and grading calculator (`internal/auditor/health.go`).
+- Implement HMAC-SHA256 Disaster Recovery Certificate generator and standalone verifier (`internal/certificate/`).
+- Implement alert dispatchers for Telegram, Slack, and Discord (`internal/notifier/`).
 
-### Phase 5: Production Hardening, Testing & Documentation
-- [ ] Build end-to-end integration tests using deliberately corrupted dump files to verify failure detection.
-- [ ] Write comprehensive documentation on configuring S3 lifecycles and cron schedules.
-- [ ] Release single-binary binaries for Linux, macOS, and Windows.
+### Phase 5: Drill Orchestrator, Live Log Hub and Synthetic Fixtures
+- Implement central drill orchestrator coordinating fetch, sandbox boot, restore, audit, and teardown (`internal/orchestrator/orchestrator.go`).
+- Implement real-time log event hub supporting subscription and SSE broadcasting.
+- Implement synthetic testbed generator (`internal/fixtures/fixtures.go`) providing realistic clean backups as well as deliberately corrupted backups (bit-rot, missing foreign keys, truncated archives).
+
+### Phase 6: Embedded React 19 Recovery Cockpit
+- Scaffold React 19, TypeScript, and Vite application in `web/`.
+- Configure Tailwind CSS with high-contrast reliability cockpit theme.
+- Build Health Score summary cards with grade breakdown.
+- Build interactive RTO history trendline chart.
+- Build Drill History table with detailed modal viewer.
+- Build Live Log Stream component with Server-Sent Events (SSE) integration.
+- Build On-Demand Drill Trigger dialog with engine and snapshot selection.
+- Build Disaster Recovery Certificate viewer with signature copy and verification badge.
+- Build HTTP API server in Go (`internal/server/`) serving REST endpoints, SSE streams, and embedded React static assets via Go `embed.FS`.
+
+### Phase 7: Verification, Testing and Production Packaging
+- Write comprehensive unit tests for configuration, storage, sandboxes, engines, auditors, and certificates.
+- Write end-to-end integration tests using synthetic valid and corrupt backups to verify failure grading.
+- Compile and test standalone binary `restorecraft.exe` on Windows and verify clean startup.
+- Verify web cockpit in browser.
+- Write clear, factual documentation (`README.md`, `docs/architecture.md`, `docs/configuration.md`, `docs/disaster_recovery_playbook.md`).
