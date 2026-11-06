@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -211,7 +212,13 @@ func cmdDrill(args []string) {
 	fmt.Printf("Integrity OK: %t\n", run.Audit.IntegrityOk)
 
 	if run.Certificate != nil {
-		fmt.Printf("Certificate:  %s (Signed by %s)\n", run.Certificate.CertificateID, run.Certificate.SignerIdentity)
+		certDir := filepath.Join(cfg.Server.DataDir, "certificates")
+		_ = os.MkdirAll(certDir, 0755)
+		certFile := filepath.Join(certDir, run.Certificate.CertificateID+".json")
+		if certBytes, err := json.MarshalIndent(run.Certificate, "", "  "); err == nil {
+			_ = os.WriteFile(certFile, certBytes, 0644)
+		}
+		fmt.Printf("Certificate:  %s (Exported to %s)\n", run.Certificate.CertificateID, certFile)
 	}
 
 	if run.HealthGrade == "F" || run.Status == "failed" {
@@ -270,31 +277,55 @@ func cmdDrillBisect(args []string) {
 func cmdVerifyCert(args []string) {
 	fs := flag.NewFlagSet("verify-cert", flag.ExitOnError)
 	certPath := fs.String("cert", "", "Path to Disaster Recovery Certificate JSON file")
+	certID := fs.String("id", "", "Certificate ID to verify directly from database")
+	cfgPath := fs.String("config", "", "Config file path")
+	dataDir := fs.String("data-dir", "./data", "Data directory containing store")
 	secret := fs.String("secret", "", "Authority HMAC-SHA256 secret key")
 	_ = fs.Parse(args)
 
-	if *certPath == "" {
-		fmt.Fprintln(os.Stderr, "error: --cert flag is required")
+	if *certPath == "" && *certID == "" {
+		fmt.Fprintln(os.Stderr, "error: either --cert <path> or --id <certificate_id> is required")
 		os.Exit(1)
-	}
-
-	data, err := os.ReadFile(*certPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "read certificate: %v\n", err)
-		os.Exit(1)
-	}
-
-	if *secret == "" {
-		*secret = os.Getenv("RESTORECRAFT_SIGNING_SECRET")
-		if *secret == "" {
-			*secret = "restorecraft-default-development-secret-key-32b"
-		}
 	}
 
 	var cert models.DisasterRecoveryCertificate
-	if err := json.Unmarshal(data, &cert); err != nil {
-		fmt.Fprintf(os.Stderr, "parse certificate json: %v\n", err)
-		os.Exit(1)
+
+	if *certPath != "" {
+		data, err := os.ReadFile(*certPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "read certificate: %v\n", err)
+			os.Exit(1)
+		}
+		if err := json.Unmarshal(data, &cert); err != nil {
+			fmt.Fprintf(os.Stderr, "parse certificate json: %v\n", err)
+			os.Exit(1)
+		}
+	} else if *certID != "" {
+		st, err := store.NewStore(*dataDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "open store: %v\n", err)
+			os.Exit(1)
+		}
+		defer st.Close()
+
+		c, err := st.GetCertificate(*certID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "certificate not found in store: %v\n", err)
+			os.Exit(1)
+		}
+		cert = *c
+	}
+
+	if *secret == "" {
+		cfg, _ := config.LoadConfig(*cfgPath)
+		if cfg != nil && cfg.Security.SigningSecret != "" {
+			*secret = cfg.Security.SigningSecret
+		} else {
+			*secret = os.Getenv("RESTORECRAFT_SIGNING_SECRET")
+			if *secret == "" {
+				*secret = "restorecraft-default-development-secret-key-32b"
+			}
+		}
 	}
 
 	res := certificate.VerifyCertificate(&cert, *secret)
