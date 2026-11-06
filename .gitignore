@@ -1,0 +1,41 @@
+# Binaries and executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+build/
+restorecraft
+
+# Go workspace and test artifacts
+*.test
+*.out
+coverage.html
+vendor/
+
+# Node and web frontend
+node_modules/
+web/node_modules/
+web/dist/
+.vite/
+
+# Application runtime data
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-journal
+test-backups/
+backups/
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
