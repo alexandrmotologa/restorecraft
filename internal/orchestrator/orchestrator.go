@@ -198,7 +198,12 @@ func (o *Orchestrator) RunDrill(ctx context.Context, drillCfg config.DrillConfig
 	if sandboxErr != nil {
 		return o.failDrill(drill, timer, "sandbox", fmt.Sprintf("sandbox provisioning failed: %v", sandboxErr))
 	}
+
+	var heldOpen bool
 	defer func() {
+		if heldOpen {
+			return
+		}
 		o.emitLog(drillID, "INFO", "teardown", "Pruning ephemeral sandbox and temporary volumes")
 		_ = timer.Measure(&drill.Timings.TeardownMs, func() error {
 			return sb.Cleanup(context.Background())
@@ -250,6 +255,7 @@ func (o *Orchestrator) RunDrill(ctx context.Context, drillCfg config.DrillConfig
 			ctx,
 			dbEngine,
 			drillCfg.Parity,
+			drillCfg.AuditPii,
 			timer.CurrentTimings().TotalRtoMs,
 			slaSeconds,
 		)
@@ -267,6 +273,18 @@ func (o *Orchestrator) RunDrill(ctx context.Context, drillCfg config.DrillConfig
 	// Complete stopwatch
 	timings := timer.Complete()
 	drill.Timings = timings
+
+	// Check if sandbox should be held open for interactive query inspection
+	shouldHold := drillCfg.HoldMinutes > 0 || (drillCfg.HoldOnFailure && (healthGrade == models.GradeF || !auditReport.IntegrityOk))
+	if shouldHold {
+		holdMins := drillCfg.HoldMinutes
+		if holdMins <= 0 {
+			holdMins = 15
+		}
+		sbID := sandbox.GetManager().RegisterHeldSandbox(drillID, drillCfg.Engine, sb, time.Duration(holdMins)*time.Minute)
+		heldOpen = true
+		o.emitLog(drillID, "INFO", "sandbox", fmt.Sprintf("Interactive debugging enabled: Sandbox %s held open for %d minutes", sbID, holdMins))
+	}
 
 	// Verify SLA
 	slaMet := timings.TotalRtoMs <= int64(slaSeconds)*1000

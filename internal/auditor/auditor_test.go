@@ -47,3 +47,48 @@ func TestCalculateHealthScoreFailed(t *testing.T) {
 		t.Fatalf("expected 0.0 and Grade F on restore failure")
 	}
 }
+
+func TestCompareSchemas(t *testing.T) {
+	actual := map[string]models.TableSchema{
+		"users": {
+			TableName: "users",
+			Columns: []models.ColumnDefinition{
+				{Name: "id", DataType: "INTEGER", Nullable: false, IsPrimaryKey: true},
+				{Name: "email", DataType: "TEXT", Nullable: false},
+			},
+		},
+	}
+
+	expectedMatch := map[string]models.TableSchema{
+		"users": {
+			TableName: "users",
+			Columns: []models.ColumnDefinition{
+				{Name: "id", DataType: "INTEGER"},
+				{Name: "email", DataType: "TEXT"},
+			},
+		},
+	}
+
+	diffMatch := CompareSchemas(actual, expectedMatch)
+	if !diffMatch.Matched {
+		t.Fatalf("expected schemas to match")
+	}
+
+	expectedMissingCol := map[string]models.TableSchema{
+		"users": {
+			TableName: "users",
+			Columns: []models.ColumnDefinition{
+				{Name: "id", DataType: "INTEGER"},
+				{Name: "phone", DataType: "TEXT"},
+			},
+		},
+	}
+
+	diffMismatch := CompareSchemas(actual, expectedMissingCol)
+	if diffMismatch.Matched {
+		t.Fatalf("expected schema mismatch due to missing column 'phone'")
+	}
+	if len(diffMismatch.MissingColumns["users"]) == 0 {
+		t.Fatalf("expected missing column 'phone' to be reported")
+	}
+}

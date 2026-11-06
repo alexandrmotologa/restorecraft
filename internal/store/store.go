@@ -30,8 +30,8 @@ func NewStore(dataDir string) (*Store, error) {
 		return nil, fmt.Errorf("open sqlite database: %w", err)
 	}
 
-	// Single connection writer for embedded SQLite WAL safety
-	db.SetMaxOpenConns(1)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
 
 	s := &Store{db: db}
 	if err := s.initSchema(); err != nil {
@@ -160,11 +160,13 @@ func (s *Store) GetDrill(id string) (*models.DrillRun, error) {
 	defer s.mu.RUnlock()
 
 	query := `
-	SELECT id, config_id, name, engine, status, snapshot_source, snapshot_path,
-	       snapshot_hash, snapshot_bytes, started_at, completed_at, health_score,
-	       health_grade, rto_sla_seconds, sla_met, error_message, timings_json,
-	       audit_json, certificate_id
-	FROM drills WHERE id = ?;
+	SELECT d.id, d.config_id, d.name, d.engine, d.status, d.snapshot_source, d.snapshot_path,
+	       d.snapshot_hash, d.snapshot_bytes, d.started_at, d.completed_at, d.health_score,
+	       d.health_grade, d.rto_sla_seconds, d.sla_met, d.error_message, d.timings_json,
+	       d.audit_json, d.certificate_id, c.certificate_json
+	FROM drills d
+	LEFT JOIN certificates c ON d.certificate_id = c.certificate_id
+	WHERE d.id = ?;
 	`
 
 	row := s.db.QueryRow(query, id)
@@ -181,12 +183,13 @@ func (s *Store) ListDrills(limit int) ([]models.DrillRun, error) {
 	}
 
 	query := `
-	SELECT id, config_id, name, engine, status, snapshot_source, snapshot_path,
-	       snapshot_hash, snapshot_bytes, started_at, completed_at, health_score,
-	       health_grade, rto_sla_seconds, sla_met, error_message, timings_json,
-	       audit_json, certificate_id
-	FROM drills
-	ORDER BY started_at DESC
+	SELECT d.id, d.config_id, d.name, d.engine, d.status, d.snapshot_source, d.snapshot_path,
+	       d.snapshot_hash, d.snapshot_bytes, d.started_at, d.completed_at, d.health_score,
+	       d.health_grade, d.rto_sla_seconds, d.sla_met, d.error_message, d.timings_json,
+	       d.audit_json, d.certificate_id, c.certificate_json
+	FROM drills d
+	LEFT JOIN certificates c ON d.certificate_id = c.certificate_id
+	ORDER BY d.started_at DESC
 	LIMIT ?;
 	`
 
@@ -289,14 +292,14 @@ func (s *Store) scanDrill(scanner rowScanner) (*models.DrillRun, error) {
 	var drill models.DrillRun
 	var statusStr, gradeStr, timingsStr, auditStr string
 	var completedAt sql.NullTime
-	var errMsg, certID sql.NullString
+	var errMsg, certID, certJSON sql.NullString
 
 	err := scanner.Scan(
 		&drill.ID, &drill.ConfigID, &drill.Name, &drill.Engine, &statusStr,
 		&drill.SnapshotSource, &drill.SnapshotPath, &drill.SnapshotHash, &drill.SnapshotBytes,
 		&drill.StartedAt, &completedAt, &drill.HealthScore, &gradeStr,
 		&drill.RtoSlaSeconds, &drill.SlaMet, &errMsg, &timingsStr,
-		&auditStr, &certID,
+		&auditStr, &certID, &certJSON,
 	)
 	if err != nil {
 		return nil, err
@@ -318,9 +321,11 @@ func (s *Store) scanDrill(scanner rowScanner) (*models.DrillRun, error) {
 		_ = json.Unmarshal([]byte(auditStr), &drill.Audit)
 	}
 
-	if certID.Valid && certID.String != "" {
-		cert, _ := s.GetCertificate(certID.String)
-		drill.Certificate = cert
+	if certJSON.Valid && certJSON.String != "" {
+		var cert models.DisasterRecoveryCertificate
+		if err := json.Unmarshal([]byte(certJSON.String), &cert); err == nil {
+			drill.Certificate = &cert
+		}
 	}
 
 	return &drill, nil

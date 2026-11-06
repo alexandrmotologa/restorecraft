@@ -130,4 +130,37 @@ func TestServerRunDrillAndVerifyCertificate(t *testing.T) {
 	if verifyRes["valid"] != true {
 		t.Fatalf("expected valid certificate, got: %+v", verifyRes)
 	}
+
+	// Test Prometheus metrics endpoint
+	mReq := httptest.NewRequest("GET", "/metrics", nil)
+	mW := httptest.NewRecorder()
+	srv.httpServer.Handler.ServeHTTP(mW, mReq)
+	if mW.Code != http.StatusOK {
+		t.Fatalf("metrics endpoint returned status %d", mW.Code)
+	}
+	if !bytes.Contains(mW.Body.Bytes(), []byte("restorecraft_up 1")) {
+		t.Fatalf("expected restorecraft_up metric")
+	}
+
+	// Test sandboxes endpoint
+	sReq := httptest.NewRequest("GET", "/api/sandboxes", nil)
+	sW := httptest.NewRecorder()
+	srv.httpServer.Handler.ServeHTTP(sW, sReq)
+	if sW.Code != http.StatusOK {
+		t.Fatalf("sandboxes endpoint returned status %d", sW.Code)
+	}
+
+	// Test bisect endpoint
+	bisectPayload := map[string]string{
+		"directory": filepath.Join(tempDir, "fixtures"),
+		"engine":    "sqlite",
+	}
+	bBytes, _ := json.Marshal(bisectPayload)
+	bReq := httptest.NewRequest("POST", "/api/drills/bisect", bytes.NewBuffer(bBytes))
+	bReq.Header.Set("Content-Type", "application/json")
+	bW := httptest.NewRecorder()
+	srv.httpServer.Handler.ServeHTTP(bW, bReq)
+	if bW.Code != http.StatusOK {
+		t.Fatalf("bisect endpoint returned status %d: %s", bW.Code, bW.Body.String())
+	}
 }

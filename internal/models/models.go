@@ -64,12 +64,53 @@ type ParityReport struct {
 	Records        []TableParityRecord `json:"records"`
 }
 
+// ColumnDefinition represents column metadata.
+type ColumnDefinition struct {
+	Name         string `json:"name"`
+	DataType     string `json:"data_type"`
+	Nullable     bool   `json:"nullable"`
+	IsPrimaryKey bool   `json:"is_primary_key"`
+}
+
+// TableSchema encapsulates the column structure of a table.
+type TableSchema struct {
+	TableName string             `json:"table_name"`
+	Columns   []ColumnDefinition `json:"columns"`
+}
+
+// SchemaDiffReport records differences between actual and expected table structures.
+type SchemaDiffReport struct {
+	Matched          bool                `json:"matched"`
+	MissingTables    []string            `json:"missing_tables"`
+	UnexpectedTables []string            `json:"unexpected_tables"`
+	MissingColumns   map[string][]string `json:"missing_columns"` // Table -> list of missing columns
+	AlteredColumns   map[string][]string `json:"altered_columns"` // Table -> list of mismatches
+}
+
+// PiiFinding describes detected unmasked personal data.
+type PiiFinding struct {
+	Table       string `json:"table"`
+	Column      string `json:"column"`
+	PiiType     string `json:"pii_type"` // "email", "credit_card", "ssn", "phone"
+	SampleCount int    `json:"sample_count"`
+	Description string `json:"description"`
+}
+
+// PiiAuditReport summarizes compliance with data masking rules.
+type PiiAuditReport struct {
+	SanitizedOk bool         `json:"sanitized_ok"`
+	Checked     bool         `json:"checked"`
+	Findings    []PiiFinding `json:"findings"`
+}
+
 // AuditReport aggregates all integrity and parity verification findings.
 type AuditReport struct {
 	IntegrityOk          bool                  `json:"integrity_ok"`
 	StructuralErrors     []string              `json:"structural_errors"`
 	ConstraintViolations []ConstraintViolation `json:"constraint_violations"`
 	Parity               ParityReport          `json:"parity"`
+	SchemaDiff           *SchemaDiffReport     `json:"schema_diff,omitempty"`
+	PiiAudit             *PiiAuditReport       `json:"pii_audit,omitempty"`
 	Warnings             []string              `json:"warnings"`
 }
 

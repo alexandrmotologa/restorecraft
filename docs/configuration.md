@@ -43,6 +43,9 @@ drills:
     storage_type: "local"
     snapshot_path: "app_production.sqlite.gz"
     rto_sla_seconds: 60
+    hold_minutes: 0
+    hold_on_failure: true
+    audit_pii: true
     parity:
       expected_tables:
         - "users"

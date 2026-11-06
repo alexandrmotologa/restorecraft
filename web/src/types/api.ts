@@ -37,11 +37,35 @@ export interface ParityReport {
   records: TableParityRecord[];
 }
 
+export interface SchemaDiffReport {
+  matched: boolean;
+  missing_tables: string[];
+  unexpected_tables: string[];
+  missing_columns: Record<string, string[]>;
+  altered_columns: Record<string, string[]>;
+}
+
+export interface PiiFinding {
+  table: string;
+  column: string;
+  pii_type: string;
+  sample_count: number;
+  description: string;
+}
+
+export interface PiiAuditReport {
+  sanitized_ok: boolean;
+  checked: boolean;
+  findings: PiiFinding[];
+}
+
 export interface AuditReport {
   integrity_ok: boolean;
   structural_errors: string[];
   constraint_violations: ConstraintViolation[];
   parity: ParityReport;
+  schema_diff?: SchemaDiffReport;
+  pii_audit?: PiiAuditReport;
   warnings: string[];
 }
 
@@ -103,4 +127,53 @@ export interface SystemStatus {
   latest_grade: HealthGrade;
   latest_score: number;
   active_drill_id?: string;
+}
+
+export interface ActiveSandboxInfo {
+  id: string;
+  drill_id: string;
+  engine: string;
+  type: string;
+  hold_until: string;
+  file_path?: string;
+}
+
+export interface QueryResult {
+  columns: string[];
+  rows: string[][];
+  row_count: number;
+  duration_ms: number;
+}
+
+export interface ScheduledJob {
+  drill_config: {
+    id: string;
+    name: string;
+    engine: string;
+    schedule: string;
+  };
+  schedule: string;
+  last_run_at?: string;
+  next_run_at: string;
+  running: boolean;
+}
+
+export interface BisectPoint {
+  snapshot_path: string;
+  health_grade: HealthGrade;
+  health_score: number;
+  status: DrillStatus;
+  rto_ms: number;
+  integrity_ok: boolean;
+  error_message?: string;
+}
+
+export interface BisectReport {
+  total_snapshots: number;
+  tested_snapshots: number;
+  first_broken_snapshot?: string;
+  first_failure_reason?: string;
+  timeline: BisectPoint[];
+  healthy_count: number;
+  broken_count: number;
 }

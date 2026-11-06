@@ -1,14 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { DrillRun, LogEntry, SystemStatus } from './types/api';
+import { DrillRun, LogEntry, SystemStatus, ActiveSandboxInfo } from './types/api';
 import { Navbar } from './components/Navbar';
 import { RtoChart } from './components/RtoChart';
 import { DrillHistoryTable } from './components/DrillHistoryTable';
 import { LiveLogStream } from './components/LiveLogStream';
 import { DrillDetailModal } from './components/DrillDetailModal';
 import { CertificateViewer } from './components/CertificateViewer';
+import { ComplianceReportModal } from './components/ComplianceReportModal';
+import { ActiveSandboxesModal } from './components/ActiveSandboxesModal';
+import { SchedulerJobsModal } from './components/SchedulerJobsModal';
+import { TimeTravelBisectModal } from './components/TimeTravelBisectModal';
 import { RunDrillDialog } from './components/RunDrillDialog';
 import { HealthScoreBadge } from './components/HealthScoreBadge';
-import { ShieldCheck, Activity, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Activity, AlertOctagon, CheckCircle2, Terminal, Clock, Calendar } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [drills, setDrills] = useState<DrillRun[]>([]);
@@ -17,15 +21,21 @@ export const App: React.FC = () => {
   const [isSseConnected, setIsSseConnected] = useState(false);
   const [selectedDrill, setSelectedDrill] = useState<DrillRun | null>(null);
   const [certDrill, setCertDrill] = useState<DrillRun | null>(null);
+  const [complianceDrill, setComplianceDrill] = useState<DrillRun | null>(null);
   const [isRunModalOpen, setIsRunModalOpen] = useState(false);
+  const [isSandboxesModalOpen, setIsSandboxesModalOpen] = useState(false);
+  const [isSchedulerModalOpen, setIsSchedulerModalOpen] = useState(false);
+  const [isBisectModalOpen, setIsBisectModalOpen] = useState(false);
+  const [activeSandboxCount, setActiveSandboxCount] = useState(0);
   const [generatingFixtures, setGeneratingFixtures] = useState(false);
 
   // Fetch drill history and system status
   const fetchData = useCallback(async () => {
     try {
-      const [drillsRes, statusRes] = await Promise.all([
+      const [drillsRes, statusRes, sandboxesRes] = await Promise.all([
         fetch('/api/drills'),
         fetch('/api/status'),
+        fetch('/api/sandboxes'),
       ]);
       if (drillsRes.ok) {
         const data = await drillsRes.json();
@@ -34,6 +44,10 @@ export const App: React.FC = () => {
       if (statusRes.ok) {
         const data = await statusRes.json();
         setStatus(data);
+      }
+      if (sandboxesRes.ok) {
+        const data: ActiveSandboxInfo[] = await sandboxesRes.json();
+        setActiveSandboxCount(data.length);
       }
     } catch (e) {
       console.error('Failed to fetch data:', e);
@@ -99,7 +113,11 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-background text-slate-100 flex flex-col font-sans">
       <Navbar
         status={status}
+        activeSandboxCount={activeSandboxCount}
         onOpenRunModal={() => setIsRunModalOpen(true)}
+        onOpenSandboxesModal={() => setIsSandboxesModalOpen(true)}
+        onOpenSchedulerModal={() => setIsSchedulerModalOpen(true)}
+        onOpenBisectModal={() => setIsBisectModalOpen(true)}
         onGenerateFixtures={handleGenerateFixtures}
         onRefresh={fetchData}
         generatingFixtures={generatingFixtures}
@@ -157,6 +175,34 @@ export const App: React.FC = () => {
           </div>
         </div>
 
+        {/* Quick Tools Bar for Mobile / Smaller Screens */}
+        <div className="flex md:hidden items-center justify-between gap-2 p-3 bg-surface border border-border/70 rounded-xl text-xs font-mono">
+          <button
+            type="button"
+            onClick={() => setIsSandboxesModalOpen(true)}
+            className="flex-1 py-2 px-3 rounded-lg bg-surface-elevated text-emerald-300 flex items-center justify-center gap-1.5"
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            <span>Sandboxes ({activeSandboxCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsBisectModalOpen(true)}
+            className="flex-1 py-2 px-3 rounded-lg bg-surface-elevated text-indigo-300 flex items-center justify-center gap-1.5"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Bisect</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSchedulerModalOpen(true)}
+            className="flex-1 py-2 px-3 rounded-lg bg-surface-elevated text-blue-300 flex items-center justify-center gap-1.5"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Scheduler</span>
+          </button>
+        </div>
+
         {/* Charts & Telemetry Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RtoChart drills={drills} />
@@ -189,11 +235,36 @@ export const App: React.FC = () => {
           setSelectedDrill(null);
           setCertDrill(d);
         }}
+        onOpenCompliance={(d) => {
+          setSelectedDrill(null);
+          setComplianceDrill(d);
+        }}
       />
 
       <CertificateViewer
         cert={certDrill?.certificate || null}
         onClose={() => setCertDrill(null)}
+      />
+
+      <ComplianceReportModal
+        drill={complianceDrill}
+        onClose={() => setComplianceDrill(null)}
+      />
+
+      <ActiveSandboxesModal
+        isOpen={isSandboxesModalOpen}
+        onClose={() => setIsSandboxesModalOpen(false)}
+        onSandboxCountChange={(count) => setActiveSandboxCount(count)}
+      />
+
+      <SchedulerJobsModal
+        isOpen={isSchedulerModalOpen}
+        onClose={() => setIsSchedulerModalOpen(false)}
+      />
+
+      <TimeTravelBisectModal
+        isOpen={isBisectModalOpen}
+        onClose={() => setIsBisectModalOpen(false)}
       />
 
       <RunDrillDialog

@@ -16,11 +16,12 @@ func NewAuditor() *Auditor {
 	return &Auditor{}
 }
 
-// Audit runs structural, constraint, and parity evaluations on a restored database engine.
+// Audit runs structural, constraint, parity, schema diff, and PII evaluations on a restored database engine.
 func (a *Auditor) Audit(
 	ctx context.Context,
 	eng engine.Engine,
 	parityCfg config.ParityConfig,
+	auditPii bool,
 	totalRtoMs int64,
 	rtoSlaSeconds int,
 ) (models.AuditReport, float64, models.HealthGrade, error) {
@@ -63,7 +64,28 @@ func (a *Auditor) Audit(
 		}
 	}
 
-	// 4. Calculate health score and letter grade
+	// 4. Schema introspection and diff against expected baseline
+	actualSchema, err := InspectSQLiteSchema(ctx, eng)
+	if err == nil && len(actualSchema) > 0 {
+		diff := CompareSchemas(actualSchema, parityCfg.ExpectedSchema)
+		report.SchemaDiff = &diff
+		if !diff.Matched {
+			report.IntegrityOk = false
+		}
+	}
+
+	// 5. PII Masking & Data Sanitization check
+	if auditPii {
+		piiRep, err := AuditPiiSanitization(ctx, eng)
+		if err == nil {
+			report.PiiAudit = &piiRep
+			if !piiRep.SanitizedOk {
+				report.IntegrityOk = false
+			}
+		}
+	}
+
+	// 6. Calculate health score and letter grade
 	score, grade := CalculateHealthScore(
 		false,
 		report.StructuralErrors,
@@ -72,6 +94,31 @@ func (a *Auditor) Audit(
 		totalRtoMs,
 		rtoSlaSeconds,
 	)
+
+	// Additional deductions for Schema drift and PII violations
+	if report.SchemaDiff != nil && !report.SchemaDiff.Matched {
+		score -= 15.0
+	}
+	if report.PiiAudit != nil && !report.PiiAudit.SanitizedOk {
+		score -= 20.0
+	}
+	if score < 0 {
+		score = 0
+	}
+
+	// Recalculate grade if score decreased
+	switch {
+	case score >= 95.0:
+		grade = models.GradeAPlus
+	case score >= 85.0:
+		grade = models.GradeA
+	case score >= 70.0:
+		grade = models.GradeB
+	case score >= 50.0:
+		grade = models.GradeC
+	default:
+		grade = models.GradeF
+	}
 
 	return report, score, grade, nil
 }

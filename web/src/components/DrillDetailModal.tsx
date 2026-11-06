@@ -1,15 +1,16 @@
 import React from 'react';
 import { DrillRun } from '../types/api';
 import { HealthScoreBadge } from './HealthScoreBadge';
-import { X, Clock, Database, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { X, Clock, Database, CheckCircle2, AlertTriangle, ShieldCheck, FileText, Lock } from 'lucide-react';
 
 interface Props {
   drill: DrillRun | null;
   onClose: () => void;
   onViewCert: (drill: DrillRun) => void;
+  onOpenCompliance: (drill: DrillRun) => void;
 }
 
-export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert }) => {
+export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert, onOpenCompliance }) => {
   if (!drill) return null;
 
   const total = drill.timings?.total_rto_ms || 1;
@@ -33,6 +34,9 @@ export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert }
     { name: 'Teardown Prune', ms: timings.teardown_ms, color: 'bg-amber-500' },
   ];
 
+  const piiAudit = drill.audit?.pii_audit;
+  const schemaDiff = drill.audit?.schema_diff;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-surface border border-border w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
@@ -49,6 +53,15 @@ export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert }
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenCompliance(drill)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-elevated hover:bg-slate-800 text-slate-200 border border-border text-xs font-medium transition-colors"
+            >
+              <FileText className="w-4 h-4 text-blue-400" />
+              Compliance Pack
+            </button>
+
             {drill.certificate && (
               <button
                 type="button"
@@ -59,6 +72,7 @@ export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert }
                 View Certificate
               </button>
             )}
+
             <button
               type="button"
               onClick={onClose}
@@ -70,7 +84,7 @@ export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert }
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm font-sans">
           {/* Metadata Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono text-xs">
             <div className="bg-surface-elevated/40 border border-border/50 p-3 rounded-lg">
@@ -179,7 +193,7 @@ export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert }
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-1.5 font-sans">
                 <Database className="w-4 h-4 text-slate-400" />
-                Table Row-Count &amp; Schema Parity
+                Table Row-Count &amp; Parity Check
               </h4>
               <div className="bg-surface-elevated/30 border border-border/60 rounded-xl overflow-hidden font-mono text-xs">
                 <table className="w-full text-left">
@@ -204,7 +218,7 @@ export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert }
                             </span>
                           ) : (
                             <span className="text-rose-400 font-bold">
-                              {r.missing_table ? 'Missing Table' : `Short by ${Math.abs(r.diff)}`}
+                              {r.missing_table ? 'Missing Table' : `Discrepant (${r.diff})`}
                             </span>
                           )}
                         </td>
@@ -212,6 +226,66 @@ export const DrillDetailModal: React.FC<Props> = ({ drill, onClose, onViewCert }
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* Privacy & PII Audit Section */}
+          {piiAudit && (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-1.5 font-sans">
+                <Lock className="w-4 h-4 text-slate-400" />
+                Privacy &amp; Data Masking Audit (GDPR/HIPAA)
+              </h4>
+              <div className="bg-surface-elevated/30 border border-border/50 rounded-xl p-4 font-mono text-xs">
+                {piiAudit.sanitized_ok ? (
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>No raw PII leaks detected. Snapshot sanitized or synthetic data confirmed.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-rose-400 font-bold">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>Sensitive unmasked PII detected in restored tables!</span>
+                    </div>
+                    <div className="space-y-1 text-rose-300">
+                      {piiAudit.findings.map((f, i) => (
+                        <div key={i} className="pl-4">
+                          • {f.table}.{f.column} ({f.pii_type}): {f.description} ({f.sample_count} rows flagged)
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Schema Diff Section */}
+          {schemaDiff && (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-1.5 font-sans">
+                <Database className="w-4 h-4 text-slate-400" />
+                Schema Evolution &amp; Drift Detection
+              </h4>
+              <div className="bg-surface-elevated/30 border border-border/50 rounded-xl p-4 font-mono text-xs">
+                {schemaDiff.matched ? (
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Schema matches baseline gold standard perfectly.</span>
+                  </div>
+                ) : (
+                  <div className="text-rose-300 space-y-1">
+                    <div>Schema discrepancies found:</div>
+                    {schemaDiff.missing_tables.length > 0 && (
+                      <div>Missing Tables: {schemaDiff.missing_tables.join(', ')}</div>
+                    )}
+                    {schemaDiff.unexpected_tables.length > 0 && (
+                      <div>Unexpected Tables: {schemaDiff.unexpected_tables.join(', ')}</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

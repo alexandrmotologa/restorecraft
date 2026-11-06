@@ -12,8 +12,11 @@ import (
 	"github.com/alexandrmotologa/restorecraft/internal/certificate"
 	"github.com/alexandrmotologa/restorecraft/internal/config"
 	"github.com/alexandrmotologa/restorecraft/internal/fixtures"
+	"github.com/alexandrmotologa/restorecraft/internal/metrics"
 	"github.com/alexandrmotologa/restorecraft/internal/models"
 	"github.com/alexandrmotologa/restorecraft/internal/orchestrator"
+	"github.com/alexandrmotologa/restorecraft/internal/sandbox"
+	"github.com/alexandrmotologa/restorecraft/internal/scheduler"
 	"github.com/alexandrmotologa/restorecraft/internal/store"
 )
 
@@ -22,8 +25,14 @@ type Server struct {
 	cfg          *config.Config
 	store        *store.Store
 	orchestrator *orchestrator.Orchestrator
+	scheduler    *scheduler.Scheduler
 	staticFS     fs.FS
 	httpServer   *http.Server
+}
+
+// SetScheduler attaches a running cron scheduler to the server.
+func (s *Server) SetScheduler(sched *scheduler.Scheduler) {
+	s.scheduler = sched
 }
 
 // NewServer initializes the HTTP server.
@@ -59,6 +68,12 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/certificates/verify", s.handleVerifyCertificate)
 	mux.HandleFunc("POST /api/fixtures/generate", s.handleGenerateFixtures)
 	mux.HandleFunc("GET /api/config", s.handleGetConfig)
+	mux.HandleFunc("GET /metrics", s.handleMetrics)
+	mux.HandleFunc("GET /api/scheduler/jobs", s.handleGetSchedulerJobs)
+	mux.HandleFunc("GET /api/sandboxes", s.handleListSandboxes)
+	mux.HandleFunc("POST /api/sandboxes/{id}/query", s.handleQuerySandbox)
+	mux.HandleFunc("DELETE /api/sandboxes/{id}", s.handleDestroySandbox)
+	mux.HandleFunc("POST /api/drills/bisect", s.handleBisectDrill)
 
 	// Embedded UI / Static assets
 	if s.staticFS != nil {
@@ -155,6 +170,9 @@ type RunDrillRequest struct {
 	SnapshotPath  string `json:"snapshot_path,omitempty"`
 	StorageType   string `json:"storage_type,omitempty"`
 	RtoSlaSeconds int    `json:"rto_sla_seconds,omitempty"`
+	HoldMinutes   int    `json:"hold_minutes,omitempty"`
+	HoldOnFailure bool   `json:"hold_on_failure,omitempty"`
+	AuditPii      bool   `json:"audit_pii,omitempty"`
 }
 
 func (s *Server) handleRunDrill(w http.ResponseWriter, r *http.Request) {
@@ -179,6 +197,9 @@ func (s *Server) handleRunDrill(w http.ResponseWriter, r *http.Request) {
 			StorageType:   req.StorageType,
 			SnapshotPath:  req.SnapshotPath,
 			RtoSlaSeconds: req.RtoSlaSeconds,
+			HoldMinutes:   req.HoldMinutes,
+			HoldOnFailure: req.HoldOnFailure,
+			AuditPii:      req.AuditPii,
 		}
 		if drillCfg.Engine == "" {
 			drillCfg.Engine = "sqlite"
@@ -191,6 +212,16 @@ func (s *Server) handleRunDrill(w http.ResponseWriter, r *http.Request) {
 		}
 		if drillCfg.RtoSlaSeconds <= 0 {
 			drillCfg.RtoSlaSeconds = 60
+		}
+	} else {
+		if req.HoldMinutes > 0 {
+			drillCfg.HoldMinutes = req.HoldMinutes
+		}
+		if req.HoldOnFailure {
+			drillCfg.HoldOnFailure = true
+		}
+		if req.AuditPii {
+			drillCfg.AuditPii = true
 		}
 	}
 
@@ -293,6 +324,85 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 		"defaults": s.cfg.Defaults,
 	}
 	writeJSON(w, http.StatusOK, safeConfig)
+}
+
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	txt, err := metrics.GeneratePrometheusMetrics(s.store)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(txt))
+}
+
+func (s *Server) handleGetSchedulerJobs(w http.ResponseWriter, r *http.Request) {
+	if s.scheduler == nil {
+		writeJSON(w, http.StatusOK, []any{})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.scheduler.GetJobs())
+}
+
+func (s *Server) handleListSandboxes(w http.ResponseWriter, r *http.Request) {
+	list := sandbox.GetManager().ListSandboxes()
+	writeJSON(w, http.StatusOK, list)
+}
+
+func (s *Server) handleQuerySandbox(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Query string `json:"query"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := sandbox.GetManager().QuerySandbox(r.Context(), id, req.Query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, res)
+}
+
+func (s *Server) handleDestroySandbox(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := sandbox.GetManager().DestroySandbox(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"status":  "destroyed",
+		"message": fmt.Sprintf("Sandbox %s pruned cleanly", id),
+	})
+}
+
+func (s *Server) handleBisectDrill(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Directory string `json:"directory"`
+		Engine    string `json:"engine"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	if req.Directory == "" {
+		req.Directory = "./test-backups"
+	}
+	if req.Engine == "" {
+		req.Engine = "sqlite"
+	}
+
+	report, err := s.orchestrator.RunTimeTravelBisect(r.Context(), req.Directory, req.Engine)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, report)
 }
 
 func writeJSON(w http.ResponseWriter, status int, data any) {

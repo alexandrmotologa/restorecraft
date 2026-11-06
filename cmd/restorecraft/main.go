@@ -15,6 +15,7 @@ import (
 	"github.com/alexandrmotologa/restorecraft/internal/fixtures"
 	"github.com/alexandrmotologa/restorecraft/internal/models"
 	"github.com/alexandrmotologa/restorecraft/internal/orchestrator"
+	"github.com/alexandrmotologa/restorecraft/internal/scheduler"
 	"github.com/alexandrmotologa/restorecraft/internal/server"
 	"github.com/alexandrmotologa/restorecraft/internal/store"
 	"github.com/alexandrmotologa/restorecraft/web"
@@ -37,6 +38,8 @@ func main() {
 		cmdServe(os.Args[2:])
 	case "drill":
 		cmdDrill(os.Args[2:])
+	case "drill-bisect":
+		cmdDrillBisect(os.Args[2:])
 	case "verify-cert":
 		cmdVerifyCert(os.Args[2:])
 	case "fixtures":
@@ -59,8 +62,9 @@ Usage:
   restorecraft <command> [arguments]
 
 Available Commands:
-  serve         Start background daemon and embedded React 19 Recovery Cockpit
+  serve         Start background daemon, cron scheduler and Recovery Cockpit
   drill         Execute an on-demand disaster recovery drill via CLI
+  drill-bisect  Test historical snapshots to pinpoint the date of data regression
   verify-cert   Verify the cryptographic HMAC-SHA256 signature of a recovery certificate
   fixtures      Generate valid and deliberately corrupted backup testbeds
   version       Print software version and build info
@@ -105,11 +109,18 @@ func cmdServe(args []string) {
 	defer st.Close()
 
 	orch := orchestrator.NewOrchestrator(cfg, st)
+	sched := scheduler.NewScheduler(orch, cfg.Drills)
+	sched.Start(context.Background())
+	defer sched.Stop()
+
 	srv := server.NewServer(cfg, st, orch, web.GetFS())
+	srv.SetScheduler(sched)
 
 	fmt.Printf("====================================================\n")
 	fmt.Printf("  restorecraft Recovery Cockpit v%s\n", Version)
 	fmt.Printf("  Serving on http://%s:%d\n", cfg.Server.Host, cfg.Server.Port)
+	fmt.Printf("  Cron Scheduler: Active (%d scheduled drills)\n", len(sched.GetJobs()))
+	fmt.Printf("  Prometheus Metrics: http://%s:%d/metrics\n", cfg.Server.Host, cfg.Server.Port)
 	fmt.Printf("  Persistence: %s\n", cfg.Server.DataDir)
 	fmt.Printf("====================================================\n")
 
@@ -205,6 +216,54 @@ func cmdDrill(args []string) {
 
 	if run.HealthGrade == "F" || run.Status == "failed" {
 		os.Exit(1)
+	}
+}
+
+func cmdDrillBisect(args []string) {
+	fs := flag.NewFlagSet("drill-bisect", flag.ExitOnError)
+	dir := fs.String("dir", "./test-backups", "Directory containing historical snapshots")
+	engine := fs.String("engine", "sqlite", "Target engine: sqlite, postgres, mysql")
+	dataDir := fs.String("data-dir", "./data", "Data directory")
+	_ = fs.Parse(args)
+
+	cfg := config.DefaultConfig()
+	cfg.Server.DataDir = *dataDir
+
+	st, err := store.NewStore(cfg.Server.DataDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "init store: %v\n", err)
+		os.Exit(1)
+	}
+	defer st.Close()
+
+	orch := orchestrator.NewOrchestrator(cfg, st)
+
+	fmt.Printf("Starting time-travel recovery bisect across snapshots in: %s\n\n", *dir)
+	report, err := orch.RunTimeTravelBisect(context.Background(), *dir, *engine)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "bisect failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("--- Bisect Summary ---\n")
+	fmt.Printf("Total Snapshots Tested: %d\n", report.TestedSnapshots)
+	fmt.Printf("Healthy Snapshots:      %d\n", report.HealthyCount)
+	fmt.Printf("Broken/Corrupt:         %d\n", report.BrokenCount)
+
+	if report.FirstBrokenSnapshot != "" {
+		fmt.Printf("\n[REGRESSION IDENTIFIED]: First broken snapshot is: %s\n", report.FirstBrokenSnapshot)
+		fmt.Printf("Failure Cause:           %s\n", report.FirstFailureReason)
+	} else {
+		fmt.Printf("\n[RESULT]: 100%% of tested historical snapshots restored cleanly!\n")
+	}
+
+	fmt.Printf("\nChronological Snapshot Timeline:\n")
+	for _, pt := range report.Timeline {
+		mark := "PASS"
+		if pt.HealthGrade == "F" || pt.Status == "failed" {
+			mark = "FAIL"
+		}
+		fmt.Printf("  [%s] %s (Grade: %s, Score: %.1f, RTO: %dms)\n", mark, pt.SnapshotPath, pt.HealthGrade, pt.HealthScore, pt.RtoMs)
 	}
 }
 

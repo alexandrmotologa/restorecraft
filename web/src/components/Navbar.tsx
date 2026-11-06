@@ -1,11 +1,15 @@
 import React from 'react';
 import { SystemStatus } from '../types/api';
 import { HealthScoreBadge } from './HealthScoreBadge';
-import { Database, Play, Sparkles, RefreshCw } from 'lucide-react';
+import { Database, Play, Sparkles, RefreshCw, Terminal, Calendar, Clock, BarChart2 } from 'lucide-react';
 
 interface Props {
   status: SystemStatus | null;
+  activeSandboxCount: number;
   onOpenRunModal: () => void;
+  onOpenSandboxesModal: () => void;
+  onOpenSchedulerModal: () => void;
+  onOpenBisectModal: () => void;
   onGenerateFixtures: () => void;
   onRefresh: () => void;
   generatingFixtures: boolean;
@@ -13,7 +17,11 @@ interface Props {
 
 export const Navbar: React.FC<Props> = ({
   status,
+  activeSandboxCount,
   onOpenRunModal,
+  onOpenSandboxesModal,
+  onOpenSchedulerModal,
+  onOpenBisectModal,
   onGenerateFixtures,
   onRefresh,
   generatingFixtures,
@@ -41,7 +49,7 @@ export const Navbar: React.FC<Props> = ({
 
         {/* System Status Summary */}
         {status && (
-          <div className="hidden md:flex items-center gap-5 text-xs font-mono">
+          <div className="hidden xl:flex items-center gap-4 text-xs font-mono">
             <div className="flex items-center gap-2 bg-surface-elevated/40 px-3 py-1.5 rounded-lg border border-border/50">
               <span className="text-slate-400">Latest Grade:</span>
               <HealthScoreBadge grade={status.latest_grade} score={status.latest_score} size="sm" />
@@ -63,8 +71,62 @@ export const Navbar: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Action CTAs */}
-        <div className="flex items-center gap-2.5">
+        {/* Feature Tools & Action CTAs */}
+        <div className="flex items-center gap-2">
+          {/* Active Sandboxes Pill */}
+          <button
+            type="button"
+            onClick={onOpenSandboxesModal}
+            className={`hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-colors ${
+              activeSandboxCount > 0
+                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20'
+                : 'bg-surface-elevated/50 border-border/60 text-slate-400 hover:bg-slate-800'
+            }`}
+            title="Inspect running ephemeral database sandboxes"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Sandboxes</span>
+            {activeSandboxCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-black text-[10px] font-bold">
+                {activeSandboxCount}
+              </span>
+            )}
+          </button>
+
+          {/* Time-Travel Bisect */}
+          <button
+            type="button"
+            onClick={onOpenBisectModal}
+            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-elevated/50 hover:bg-slate-800 text-slate-300 border border-border/60 text-xs font-mono transition-colors"
+            title="Time-Travel Snapshot Bisect Engine"
+          >
+            <Clock className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Bisect</span>
+          </button>
+
+          {/* Scheduler */}
+          <button
+            type="button"
+            onClick={onOpenSchedulerModal}
+            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-elevated/50 hover:bg-slate-800 text-slate-300 border border-border/60 text-xs font-mono transition-colors"
+            title="Automated Cron Drill Scheduler"
+          >
+            <Calendar className="w-3.5 h-3.5 text-blue-400" />
+            <span>Scheduler</span>
+          </button>
+
+          {/* Prometheus Metrics Link */}
+          <a
+            href="/metrics"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-lg bg-surface-elevated hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-border transition-colors hidden sm:block"
+            title="Open Prometheus /metrics"
+          >
+            <BarChart2 className="w-4 h-4 text-purple-400" />
+          </a>
+
+          {/* Refresh */}
           <button
             type="button"
             onClick={onRefresh}
@@ -74,6 +136,7 @@ export const Navbar: React.FC<Props> = ({
             <RefreshCw className="w-4 h-4" />
           </button>
 
+          {/* Test Fixtures */}
           <button
             type="button"
             onClick={onGenerateFixtures}
@@ -85,13 +148,14 @@ export const Navbar: React.FC<Props> = ({
             {generatingFixtures ? 'Generating...' : 'Test Fixtures'}
           </button>
 
+          {/* Execute Drill CTA */}
           <button
             type="button"
             onClick={onOpenRunModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
-            Execute Drill
+            <span>Execute Drill</span>
           </button>
         </div>
       </div>

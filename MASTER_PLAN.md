@@ -251,3 +251,11 @@ $$\text{Health Score} = 100 - (\text{DataLossPenalty} \times 50) - (\text{Constr
 - Compile and test standalone binary `restorecraft.exe` on Windows and verify clean startup.
 - Verify web cockpit in browser.
 - Write clear, factual documentation (`README.md`, `docs/architecture.md`, `docs/configuration.md`, `docs/disaster_recovery_playbook.md`).
+
+### Phase 8: Advanced Disaster Recovery Extensions (Completed)
+- Background Cron Scheduler (`internal/scheduler`): Evaluates cron expressions (`@daily`, `@hourly`, `0 3 * * *`) and runs unattended drills in background goroutines.
+- Prometheus Metrics Exposition (`internal/metrics`): Real-time metrics on `/metrics` exposing drill counts, RTO gauges, and health grades.
+- Held Sandbox Manager & Interactive SQL Console (`internal/sandbox/manager.go` and `web/src/components/InteractiveSqlConsole.tsx`): Keeps ephemeral sandboxes open for live, read-only SQL queries and inspection.
+- Time-Travel Snapshot Bisect Engine (`internal/orchestrator/bisect.go` and `web/src/components/TimeTravelBisectModal.tsx`): Chronological evaluation of backup histories to identify the exact date of corruption or regression.
+- Privacy & PII Sanitization Leak Audit (`internal/auditor/pii.go`): Scans restored tables for unmasked email addresses, credit cards, or SSNs to enforce GDPR Article 32 and HIPAA data sanitization requirements.
+- Disaster Recovery Compliance Evidence Pack (`web/src/components/ComplianceReportModal.tsx`): Printable audit-grade evidence report with HMAC-SHA256 digital seal and executive sign-off blocks.

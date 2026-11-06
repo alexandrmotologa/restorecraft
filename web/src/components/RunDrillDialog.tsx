@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Play, Database, ShieldAlert, Sparkles } from 'lucide-react';
+import { X, Play, Database, ShieldAlert, Sparkles, Terminal, ShieldCheck } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -12,6 +12,9 @@ export const RunDrillDialog: React.FC<Props> = ({ isOpen, onClose, onDrillStarte
   const [preset, setPreset] = useState('valid_ecommerce.sqlite');
   const [customPath, setCustomPath] = useState('');
   const [sla, setSla] = useState(60);
+  const [holdMinutes, setHoldMinutes] = useState(0);
+  const [holdOnFailure, setHoldOnFailure] = useState(false);
+  const [auditPii, setAuditPii] = useState(true);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -70,6 +73,9 @@ export const RunDrillDialog: React.FC<Props> = ({ isOpen, onClose, onDrillStarte
           snapshot_path: snapshotPath,
           storage_type: 'local',
           rto_sla_seconds: Number(sla),
+          hold_minutes: Number(holdMinutes),
+          hold_on_failure: holdOnFailure,
+          audit_pii: auditPii,
         }),
       });
       onDrillStarted();
@@ -83,9 +89,9 @@ export const RunDrillDialog: React.FC<Props> = ({ isOpen, onClose, onDrillStarte
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-surface border border-border w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="bg-surface border border-border w-full max-w-xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 bg-surface-elevated/60 border-b border-border flex items-center justify-between">
+        <div className="px-6 py-4 bg-surface-elevated/60 border-b border-border flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
               <Play className="w-4 h-4 fill-current" />
@@ -108,7 +114,7 @@ export const RunDrillDialog: React.FC<Props> = ({ isOpen, onClose, onDrillStarte
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleLaunch} className="p-6 space-y-5 text-sm font-sans">
+        <form onSubmit={handleLaunch} className="flex-1 overflow-y-auto p-6 space-y-5 text-sm font-sans">
           {/* Engine Selector */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 block mb-2 font-mono">
@@ -182,7 +188,7 @@ export const RunDrillDialog: React.FC<Props> = ({ isOpen, onClose, onDrillStarte
             </label>
             <input
               type="text"
-              placeholder="./backups/my_snapshot.sqlite or S3 Key"
+              placeholder="./test-backups/my_snapshot.sqlite or S3 Key"
               value={customPath}
               onChange={(e) => setCustomPath(e.target.value)}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
@@ -205,6 +211,52 @@ export const RunDrillDialog: React.FC<Props> = ({ isOpen, onClose, onDrillStarte
               onChange={(e) => setSla(Number(e.target.value))}
               className="w-full accent-blue-500 cursor-pointer"
             />
+          </div>
+
+          {/* Advanced Drill Options */}
+          <div className="p-4 rounded-xl bg-surface-elevated/30 border border-border/50 space-y-3 font-mono text-xs">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+              Advanced Drill Options
+            </span>
+
+            {/* PII Masking Scan */}
+            <label className="flex items-center gap-2.5 cursor-pointer text-slate-300">
+              <input
+                type="checkbox"
+                checked={auditPii}
+                onChange={(e) => setAuditPii(e.target.checked)}
+                className="rounded border-slate-700 text-blue-600 focus:ring-0"
+              />
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              <span>Audit PII Data Masking (GDPR/HIPAA Sensitive Leaks)</span>
+            </label>
+
+            {/* Hold on Failure */}
+            <label className="flex items-center gap-2.5 cursor-pointer text-slate-300">
+              <input
+                type="checkbox"
+                checked={holdOnFailure}
+                onChange={(e) => setHoldOnFailure(e.target.checked)}
+                className="rounded border-slate-700 text-amber-500 focus:ring-0"
+              />
+              <Terminal className="w-3.5 h-3.5 text-amber-400" />
+              <span>Hold sandbox alive automatically if drill fails</span>
+            </label>
+
+            {/* Hold Duration */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-slate-400">Hold Sandbox for Interactive SQL:</span>
+              <select
+                value={holdMinutes}
+                onChange={(e) => setHoldMinutes(Number(e.target.value))}
+                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs"
+              >
+                <option value={0}>Teardown Immediately</option>
+                <option value={15}>Hold for 15 minutes</option>
+                <option value={30}>Hold for 30 minutes</option>
+                <option value={60}>Hold for 60 minutes</option>
+              </select>
+            </div>
           </div>
 
           {/* Footer Actions */}

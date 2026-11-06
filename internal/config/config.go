@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alexandrmotologa/restorecraft/internal/models"
 	"gopkg.in/yaml.v3"
 )
 
@@ -59,8 +60,9 @@ type S3StorageConfig struct {
 }
 
 type ParityConfig struct {
-	ExpectedTables []string         `yaml:"expected_tables"`
-	MinRowCounts   map[string]int64 `yaml:"min_row_counts"`
+	ExpectedTables []string                           `yaml:"expected_tables"`
+	MinRowCounts   map[string]int64                   `yaml:"min_row_counts"`
+	ExpectedSchema map[string]models.TableSchema      `yaml:"expected_schema"`
 }
 
 type DockerSandboxConfig struct {
@@ -77,6 +79,9 @@ type DrillConfig struct {
 	StorageType    string              `yaml:"storage_type"` // "local", "s3"
 	SnapshotPath   string              `yaml:"snapshot_path"`
 	RtoSlaSeconds  int                 `yaml:"rto_sla_seconds"`
+	HoldMinutes    int                 `yaml:"hold_minutes"`    // Keep sandbox alive for debugging
+	HoldOnFailure  bool                `yaml:"hold_on_failure"` // Hold sandbox if drill fails
+	AuditPii       bool                `yaml:"audit_pii"`       // Assert data sanitization / masking
 	Docker         DockerSandboxConfig `yaml:"docker"`
 	Parity         ParityConfig        `yaml:"parity"`
 }

@@ -168,6 +168,11 @@ func (s *SQLiteEngine) CheckIntegrity(ctx context.Context) ([]string, error) {
 	return errors, rows.Err()
 }
 
+// GetDB returns the active database connection for direct auditing queries.
+func (s *SQLiteEngine) GetDB() *sql.DB {
+	return s.db
+}
+
 func (s *SQLiteEngine) Close() error {
 	if s.db != nil {
 		return s.db.Close()
