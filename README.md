@@ -100,6 +100,14 @@ cd restorecraft
 go build -ldflags="-s -w -X 'main.Version=1.0.0'" -o restorecraft ./cmd/restorecraft
 ```
 
+### Version Check
+
+```bash
+restorecraft --version
+restorecraft -v
+restorecraft version
+```
+
 ### Running the Web Cockpit & Daemon
 
 Start the background daemon, cron scheduler, and web interface on port 8080:

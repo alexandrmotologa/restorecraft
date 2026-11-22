@@ -45,8 +45,8 @@ func main() {
 		cmdVerifyCert(os.Args[2:])
 	case "fixtures":
 		cmdFixtures(os.Args[2:])
-	case "version":
-		fmt.Printf("restorecraft version %s (built %s)\n", Version, BuildDate)
+	case "version", "--version", "-v", "-V":
+		fmt.Printf("RestoreCraft v%s\n", Version)
 	case "help", "-h", "--help":
 		printUsage()
 	default:
